@@ -1,0 +1,346 @@
+---
+title: "Homework_Weekend1_Kirsty"
+output:
+  html_document:
+    df_print: paged
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+------------------------------------------------------------------------
+
+## Load Packages & Data
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(stringr)
+library(knitr)
+```
+
+```{r}
+books <- read_csv("data/books.csv")
+```
+
+------------------------------------------------------------------------
+
+## Exploring the Data
+
+```{r}
+glimpse(books)
+```
+
+-   There are 11123 rows and 13 columns
+-   Variables are either of the type double or character
+
+The variable names are:
+
+```{r}
+
+names(books)
+
+```
+
+------------------------------------------------------------------------
+
+## Cleaning the Data
+
+-   There are some columns that don't follow the snake_case style
+    -   Fix this using `janitor`, and save data under a new name
+
+```{r}
+
+books_cleaned <- janitor::clean_names(books)
+
+#glimpse(books)
+
+```
+
+-   Check for `NA` values:
+
+```{r}
+
+books_cleaned %>% 
+  summarise(across(rowid:publisher, ~sum(is.na(.x))))
+
+```
+
+There are no `NA` values!
+
+-   Noted issues:
+    -   It appears that there are some publishers and some titles that
+        are likely to be the same but have been entered wrongly.
+
+------------------------------------------------------------------------
+
+## Analysing the Data
+
+### Publisher:
+
+#### What publisher has the most entries in the table?
+
+```{r}
+
+most_titled_pub <- books_cleaned %>% 
+  group_by(publisher) %>% 
+  summarise(title_count = (n_distinct(title))) %>% 
+  arrange(desc(title_count)) %>% 
+  head(1) 
+
+most_titled_pub
+
+```
+
+-   The publisher with the most titles in this data set is called
+    "Vintage".
+
+#### What publisher has the best overall rating?
+
+```{r}
+
+avg_overall_rating <- books_cleaned %>% 
+  group_by(publisher) %>% 
+  mutate(avg_overall_rating = (mean(average_rating))) %>% 
+  arrange(desc(avg_overall_rating)) %>% 
+  ungroup() %>% 
+  select(publisher, avg_overall_rating)
+
+
+avg_overall_rating
+
+```
+
+-   There are 12 publishers all with an average overall rating of 5.
+    However, all of these publishers all only have 1 book that is rated
+    so therefore the results could be scewed.
+
+#### Are there any publishers that have published in \>1 language?
+
+```{r}
+books_cleaned %>% 
+  group_by(publisher) %>% 
+  summarise(language_count = n_distinct(language_code)) %>% 
+  arrange(desc(language_count)) %>% 
+  filter(language_count >1)
+```
+
+-   There are 507 publishers that have published in \>1 language code,
+    "Oxford University Press USA" have published in the most languages,
+    which I would assume to be English, US English, British English,
+    Spanish, Italian and greek:
+
+```{r}
+books_cleaned %>% 
+  select(publisher, language_code) %>% 
+  filter(publisher == "Oxford University Press  USA") %>% 
+  distinct(language_code, publisher) #to remove duplicate entries
+```
+
+### Authors:
+
+-   There are a lot of authors that are entered with their illustrator/
+    co-author, to look at lead authors only:
+
+```{r}
+books_cleaned <- books_cleaned %>% 
+  mutate(lead_author = gsub("/..*", "", authors), 
+         .after = authors) %>% 
+  arrange(desc(authors))
+
+books_cleaned
+```
+
+#### What author has the highest overall rating?
+
+```{r}
+max_rated_author <- books_cleaned %>% 
+  group_by(lead_author) %>% 
+  mutate(avg_rating = (mean(average_rating))) %>% 
+  arrange(desc(avg_rating)) %>% 
+  select(lead_author, average_rating)
+
+max_rated_author
+```
+
+-   There are 17 authors with an average rating of 5.00.
+
+#### What author has the most titles listed?
+
+```{r}
+most_titled_author <- books_cleaned %>% 
+  group_by(lead_author) %>% 
+  summarise(title_count_author = (n_distinct(title))) %>% 
+  arrange(desc(title_count_author)) %>% 
+ head(1) 
+
+most_titled_author
+```
+
+-   The author with the most titles in this data is Stephen King, who
+    has 63 books listed in the table:
+
+```{r}
+books_cleaned %>% 
+  select(title, lead_author) %>% 
+  filter(lead_author == "Stephen King") %>% 
+  distinct(title, lead_author) #to remove duplicate entries
+```
+
+#### Are there any authors that have published in \>1 language?
+
+```{r}
+books_cleaned %>% 
+  group_by(lead_author) %>% 
+  summarise(language_count = n_distinct(language_code)) %>% 
+  arrange(desc(language_count)) %>% 
+  filter(language_count >1)
+```
+
+-   There are 721 authors that have published in \>1 language, with J.K
+    Rowling being the most at 7 languages. I assume these languages are
+    Turkish, German, Latvian, English, Chinese, Spanish and Gaelic(?)
+
+```{r}
+books_cleaned %>% 
+  select(lead_author, language_code) %>% 
+  filter(lead_author == "J.K. Rowling") %>% 
+  distinct(language_code, lead_author) #to remove duplicate entries
+```
+
+#### Are there any authors that have \>1 publisher?
+
+```{r}
+author_max_publishers <- books_cleaned %>% 
+  group_by(lead_author) %>% 
+  summarise(publisher_count = n_distinct(publisher)) %>% 
+  arrange(desc(publisher_count)) %>% 
+  head(1) %>%  
+  pull(lead_author)
+
+author_max_publishers
+```
+
+-   Stephen King has the most publishers (46).
+
+## Annual Data:
+
+-   NB: The data is entered in the format DD/MM/YY. As the date range
+    for this data set is long, I will group the data for each year using
+    the `str_sub()` function:
+
+```{r}
+books_years <- books_cleaned %>% 
+  mutate(publication_year = str_sub(publication_date, -4),
+         .after = publication_date) %>% 
+  arrange(publication_year) 
+
+books_years
+```
+
+#### What was the best book per year?
+
+```{r}
+books_years %>% 
+  mutate(publication_year = as.integer(publication_year)) %>% 
+  select("publication_year", "title", "average_rating") %>% 
+  arrange(publication_year, desc(average_rating)) %>% 
+  group_by(publication_year) %>% 
+  slice_max(average_rating, n=1)  
+```
+
+-   The table above shows the best book per year based on average
+    review. For any years where there are multiple books of the same
+    highest rating, they are all included.
+
+#### How many books were rated in each year?
+
+```{r}
+books_years %>% 
+  group_by(publication_year) %>% 
+  summarise(books_per_year = n_distinct(title)) %>% 
+  arrange(publication_year) #%>% 
+  #arrange(desc(books_per_year)) #to check year with most ratings
+```
+
+-   The table above shows the number of books per year.
+-   The year with the highest number of books was 2006 with 1674 books
+    reviewed.
+
+------------------------------------------------------------------------
+
+## An attempt to solve the duplicate publisher issue!
+
+-   It appears that there are some publishers that have the same title
+    both with slightly different names.
+-   According to the data card, the ISBN13 number is a unique
+    identifying code for each book. Each part of the code has a
+    different meaning:
+
+```{r, out.width = "75%"}
+url_ISBN13 <- "https://blog-cdn.reedsy.com/directories/admin/attachments/large_How-to-read-an-ISBN-2d4aca.jpg"
+include_graphics(url_ISBN13)
+```
+
+-   Since the 5-7th characters denote the publisher, we could use these
+    to identify the publisher for each book. This would negate the issue
+    of having duplicated publisher entries with slightly different
+    names.
+
+-   First, confirm that all ISBN-13 codes are actually 13 characters
+    long, so therefore we can assume the 5-7th characters represent the
+    publisher:
+
+```{r}
+books_cleaned %>% 
+  
+  mutate(isbn13_count = nchar(isbn13)) %>% 
+  filter(isbn13_count != 13)
+```
+
+-   Therefore all ISBN13 codes are 13 characters long, so assume they
+    follow the described format.
+
+-   Next, split ISBN13 codes up, to get 5-7th character, and save this
+    as a new variable called `isbn13_publisher`
+
+```{r}
+books_isbn_pub <- books_cleaned %>% 
+  mutate(isbn13_publisher = substr(isbn13, 5, 7),
+         .after = publisher) %>% 
+  arrange(publisher)
+books_isbn_pub
+```
+
+-   Now check how many publishers each isbn13 publisher code has,
+    hopefully only 1!
+
+```{r}
+books_isbn13_pub_grouped <- books_isbn_pub %>% 
+  group_by(publisher) %>% 
+  summarise(count_isbn_pub = n_distinct(isbn13_publisher)) %>% 
+  arrange(desc(count_isbn_pub)) %>% 
+  filter(count_isbn_pub  >1)
+
+books_isbn13_pub_grouped
+
+```
+
+-   There are 444 publishers that have more than one identifier in the
+    ISBN13 codes, so unfortunately using the ISBN13 code wouldn't clear
+    up the duplicate publisher issue, and might make things more
+    complicated.
+
+-   A quick dive to try to find a reason - could it be language,
+    authors, date related? Look at a publisher with \>1 codes called
+    "HarperCollins"
+
+```{r}
+books_isbn_pub %>% 
+  filter(publisher == "HarperCollins") %>% 
+  arrange(isbn13_publisher)
+```
+
+-   There is no obvious reason as to different publisher code used in
+    the ISBN13 codes - I was hoping to see possibly a different language
+    code or a pattern with number of authors or something similar.

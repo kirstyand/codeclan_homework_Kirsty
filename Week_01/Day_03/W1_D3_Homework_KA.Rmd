@@ -150,4 +150,3 @@ movies %>%
   summarise(across(.cols = where(is.character,
                    .fns = is.na)))
 ```
-
