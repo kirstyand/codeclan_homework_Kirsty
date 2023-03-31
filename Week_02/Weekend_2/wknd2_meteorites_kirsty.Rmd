@@ -1,0 +1,155 @@
+---
+title: "wknd2_meteorites_kirsty"
+output: html_notebook
+---
+--------------------------------------------------------------------------------
+
+# Load libraries & data 
+
+```{r}
+library(tidyverse)
+library(testthat)
+```
+
+```{r}
+meteorites_cleaned_filtered <- read_csv("data/meteorites_cleaned_filtered.csv")
+```
+
+# 1.2 The .Rmd file
+
+## Q2: Find the names and years found for the 10 largest meteorites in the data.
+```{r}
+meteorites_cleaned_filtered %>% 
+  select(name, mass_g, year) %>% #select columns required
+  arrange(desc(mass_g)) %>% 
+  head(10)
+```
+
+
+
+
+
+## Q3: Find the average mass of meteorites that were recorded falling, vs. those which were just found.
+```{r}
+# check how many types of "fall" there are
+meteorites_cleaned_filtered %>% 
+  count(fall)
+```
+```{r}
+meteorites_cleaned_filtered %>% 
+  group_by(fall) %>% 
+  summarise(average_weight = mean(mass_g))
+```
+
+
+
+
+
+## Q4: Find the number of meteorites in each year, for every year since 2000.
+
+```{r}
+meteorites_cleaned_filtered %>% 
+  filter(year >= 2000) %>% 
+  group_by(year) %>%
+  summarise(total_meteorites = n()) 
+```
+
+
+
+
+
+## Q5: Write a function called get_meteorite_count() that takes in two arguments: a dataframe and a year, and returns the phrase “In (input_year), there were (number of meteorites that year) meteorites.” IF there are 1 or more meteorites that year. If there are no meteorites in the year, return the phrase “As far as we know, there were no meteorites that year”.
+
+```{r}
+# filter dataframe for input year, then count total of meteorites in that year
+get_meteorite_count <- function(dataframe, input_year){
+  total_meteorites <- dataframe %>% 
+    filter(year == input_year) %>%
+    summarise(total_meteorites = n()) %>% 
+    pull(total_meteorites)
+  
+  # If total = 0, then state so; otherwise state total
+  if (total_meteorites == 0) {
+    print("As far as we know, there were no meteorites that year")
+  } else { if (total_meteorites >= 1){
+    print(paste0("In ", input_year, ", there were ", total_meteorites, " meteorites."))
+  }
+  }
+}
+
+  
+```
+
+```{r}
+# test new function
+
+get_meteorite_count(meteorites_cleaned_filtered, 2000)
+
+```
+
+
+
+
+
+## Q6: Write down ideas for how the function you’ve written could be improved and how you could test that the function works as it should. 
+
+- you could test that the dataframe does have the variables "year" and "total_meteorites"
+- you could check that both of these variables are integers
+- you could add a failure statement for non-numeric input
+- you could add a test for logical input
+- you could check that the year inputted does exist in the dataframe
+- you could provide some extra information, such as the largest meteorite in the year
+
+
+## Q7: Write a unit test for your function to check whether non-numeric inputs (character and logical) for the year argument return an error.
+
+
+```{r}
+# using the `test_that` package
+
+test_that("Non-numeric year inputs returns an error", {
+  expect_error(get_meteorite_count(meteorites_cleaned_filtered, year))
+  expect_error(get_meteorite_count(meteorites_cleaned_filtered, TRUE))
+})
+
+```
+  - Since `TRUE` is logical, it is seen as binary and therefore represents a number, so can pass through the function.
+
+
+
+
+
+## Q8: Improve your function based on the result of your test. Instead of going back and changing the function, please create a new function that is the improved version called refactor_get_meteorite_count(). Test your function to make sure it now gives an error when you input a logical or character value as the year. 
+
+```{r}
+
+# filter dataframe for input year, then count total of meteorites in that year
+refactor_get_meteorite_count <- function(dataframe, input_year){
+  total_meteorites <- dataframe %>% 
+    filter(year == input_year) %>%
+    summarise(total_meteorites = n()) %>% 
+    pull(total_meteorites)
+  
+# Check if input_year is numerical, stop if not
+  
+  if (!is.numeric(input_year)) {
+    stop("Non-numeric input")
+  } 
+  
+# If total = 0, then state so; otherwise state total
+  
+  if (total_meteorites == 0) {
+    print("As far as we know, there were no meteorites that year")
+  } else { if (total_meteorites >= 1){
+    print(paste0("In ", input_year, ", there were ", total_meteorites, " meteorites."))
+  }
+  }
+}
+```
+
+```{r}
+# Test new function
+refactor_get_meteorite_count(meteorites_cleaned_filtered, TRUE)
+```
+
+
