@@ -1,0 +1,245 @@
+---
+title: "W5D1_homework_kirsty"
+output: html_notebook
+---
+
+# Load Libraries & Data
+
+```{r}
+library(tidyverse)
+library(CodeClanData)
+```
+
+```{r}
+revenue_breakdown <- qb_revenue_breakdown
+monthly_sales     <- qb_monthly_sales
+competitors       <- qb_competitors
+device_data       <- qb_device_data
+```
+
+------------------------------------------------------------------------
+
+# MVP
+
+## Part 1
+
+#### Q1:
+
+#### Take the data in the dataset qb_revenue_breakdown and make a stacked bar chart showing the sources of revenue across the two years in the dataset.
+
+A:
+
+```{r}
+revenue_breakdown %>% 
+  ggplot() +
+  geom_bar(aes(x = Year, 
+               y = Revenue, 
+               fill = Product), 
+           stat = "identity")
+```
+
+#### Q2:
+
+#### Make a line chart showing monthly sales of the "flagship product" - the 'KwikBit Unit 1' - over the last year. This data is inside qb_monthly_sales, but you will need to use filter() or subset() (base R).
+
+```{r}
+monthly_sales %>% 
+  filter(Cashflow == "Kwikbit Unit 1 Sales") %>% # filter for Kwikbit only
+  ggplot() +
+  geom_line(aes(x = Date, y = Amount))
+```
+
+#### Q3:
+
+#### Make a line chart showing monthly revenue and costs over the last year. This data is also in qb_monthly_sales.
+
+```{r}
+monthly_sales %>% 
+  filter(Cashflow != "Kwikbit Unit 1 Sales") %>% # filter out Kwikbit
+  ggplot() +
+  geom_line(aes(x = Date,
+                y = Amount, 
+                group = Cashflow))
+```
+
+#### Q4:
+
+#### Show annual sales of personal fitness trackers over the last 5 years broken down by company as a ribbon plot (use geom_area). This data is in qb_competitors.
+
+```{r}
+competitors %>% 
+  ggplot() +
+  geom_area(aes(x = Year, 
+                y = Revenue, 
+                fill = Company))
+```
+
+#### Q5:
+
+#### Now show the sales from the four competitors as a line graph. Include an extra layer that shows the data points used to make the lines.
+
+```{r}
+competitors %>% 
+  ggplot() +
+  geom_line(aes(x = Year, 
+                y = Revenue, 
+                group = Company, 
+                colour = Company)) +
+  geom_point(aes(x = Year, # new layer
+                 y = Revenue, 
+                 colour = Company)) 
+
+```
+
+#### Q6:
+
+#### Now the company wants to compare the number of steps that their device counts vs. their competitors. Make a line graph of the number of steps throughout time, and use faceting to compare between companies and people. The data for this is in qb_device_data.
+
+```{r}
+device_data %>% 
+  ggplot() +
+  geom_line(aes(x = hours, 
+                y = counts, 
+                group = id, 
+                colour = device), 
+            stat = "identity") +
+  facet_grid(device ~ id)
+
+
+```
+
+## Part 2:
+
+I will copy the same base code used in Part 1
+
+#### Q1: Sources of Revenue against Year
+
+```{r}
+col_scheme <- c("#E89FE9", "#50434F", "#B6A7B5", "#F9A472", "#BD7040")
+
+revenue_breakdown %>% 
+  ggplot() +
+  geom_bar(aes(x = Year, 
+               y = Revenue, 
+               fill = Product), 
+           stat = "identity") +
+  ggtitle("Revenue per Year by Product") +
+  theme_light(base_size = 12) +
+  scale_fill_manual(values = col_scheme) + # use given scheme colours to fill
+  theme(axis.title = element_text(size = 10)) +
+  theme(title = element_text(size = 14))
+```
+
+#### Q2: Monthly Sales of KwikBit
+
+```{r}
+
+monthly_sales %>% 
+  filter(Cashflow == "Kwikbit Unit 1 Sales") %>% 
+  ggplot() +
+  geom_line(aes(x = Date, 
+                y = Amount), 
+            colour = "#E89FE9") +
+  xlab("\nMonth") +
+  ylab("Revenue\n") +
+  scale_x_date(breaks = "1 month", date_labels = "%b %y") +
+  ggtitle("Monthly Sales of Kwikbit") +
+  theme_light(base_size = 12) +
+  theme(axis.title = element_text(size = 10)) +
+  theme(title = element_text(size = 14))
+```
+
+#### Q3: Monthly Revenue vs Costs
+
+```{r}
+monthly_sales %>% 
+  filter(Cashflow != "Kwikbit Unit 1 Sales") %>% 
+  ggplot() +
+  geom_line(aes(x = Date, 
+                y = Amount, 
+                group = Cashflow, 
+                colour = Cashflow), 
+            position = "dodge") +
+  scale_colour_manual(values = c("#BD7040","#50434F")) +
+  xlab("\nMonth") +
+  ylab("Amount\n") +
+  scale_x_date(breaks = "1 month", # simplify date to month/year
+               date_labels = "%b %y") +
+  scale_y_continuous(
+    breaks = c(1500, 2000, 2500, 3000), # scale Y axis
+    limits = c(1500, 3000)) +
+  ggtitle("Monthly Revenue vs Costs") +
+  theme_light(base_size = 12) +
+  theme(axis.title = element_text(size = 10)) +
+  theme(title = element_text(size = 14)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
+
+
+
+```
+
+#### Q4 : Annual Sales by Company
+
+```{r}
+competitors %>% 
+  mutate(sales_millions = Revenue / 1000000) %>% # scale Y axis
+  ggplot() +
+  geom_area(aes(x = Year, 
+                y = sales_millions, 
+                fill = Company)) +
+  scale_fill_manual(values = col_scheme) +
+  xlab("\nYear") +
+  ylab("Revenue (millions)\n") +
+  scale_y_continuous(labels = scales::comma, 
+                     limits = c(0,7)) +
+  ggtitle("Annual Sales by Company") +
+  theme_light(base_size = 12) +
+  theme(axis.title = element_text(size = 10)) +
+  theme(title = element_text(size = 14)) 
+ 
+```
+
+#### Q5 : Annual Sales by Company
+
+```{r}
+competitors %>% 
+  ggplot() +
+  geom_line(aes(x = Year, 
+                y = Revenue, 
+                group = Company, 
+                colour = Company)) +
+  geom_point(aes(x = Year, 
+                 y = Revenue, 
+                 colour = Company)) +
+  scale_colour_manual(values = col_scheme) +
+  xlab("\nYear") +
+  ylab("Revenue\n") +
+  scale_y_continuous(labels = scales::comma) +
+  ggtitle("Annual Sales by Company") +
+  theme_light(base_size = 12) +
+  theme(axis.title = element_text(size = 10)) +
+  theme(title = element_text(size = 14)) 
+```
+
+#### Q6: Step Count per Competitor and Person
+
+```{r}
+device_data %>% 
+  mutate(count_thousands = counts / 1000) %>% # scale Y axis
+  ggplot() +
+  geom_line(aes(x = hours, 
+                y = count_thousands, 
+                group = id, 
+                colour = device), 
+            stat = "identity") +
+  scale_colour_manual(values = col_scheme) +
+  facet_grid(device ~ id ) +
+  xlab("\nHour") +
+  ylab("Steps (thousands)\n") +
+  ggtitle("Step Count by Hour per Person and Competitor") +
+  labs(colour = "Device") +
+  theme_light(base_size = 12) +
+  theme(axis.title = element_text(size = 10)) +
+  theme(title = element_text(size = 14)) 
+  
+```
