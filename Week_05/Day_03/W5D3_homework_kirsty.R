@@ -107,11 +107,11 @@ server <- function(input, output, session) {
       geom_col() +
       scale_fill_manual(values = c("#d95f02","#1b9e77")) +
       labs(
-        x = paste0(input$breed_input, "s"),
+        x = ifelse(grepl("[mM]ix$", input$breed_input), paste0(input$breed_input, "es"), paste0(input$breed_input, "s")), # adds "es" to mix to create mixes
         y = "Count\n",
         title = ifelse(grepl("[mM]ix$", input$breed_input),
-                       ifelse(input$borough_input_two == "Bronx", # adds "es" to mix to create mixes, then treats Bronx as above
-                              paste0("Number of ", input$breed_input,"es in the ",input$borough_input_two),
+                       ifelse(input$borough_input_two == "Bronx", 
+                              paste0("Number of ", input$breed_input,"es in the ",input$borough_input_two), # fixes "mixes" and "Bronx" transformations as above
                               paste0("Number of ", input$breed_input,"es in ",input$borough_input_two)),
                        ifelse(input$borough_input_two == "Bronx", 
                               paste0("Number of ", input$breed_input,"s in the ",input$borough_input_two),
