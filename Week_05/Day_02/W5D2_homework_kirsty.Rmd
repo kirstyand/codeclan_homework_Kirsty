@@ -1,0 +1,231 @@
+---
+title: "W5D2_homework_kirsty"
+output: html_notebook
+---
+
+# Load Libraries & Data
+```{r}
+library(tidyverse)
+library(CodeClanData)
+```
+
+```{r}
+backpacks <- backpack
+
+backpacks
+```
+# MVP
+
+#### Question 1:
+#### Load in the libraries you need, and look at the backpack data. Take note of variable names and dimensions.
+
+```{r}
+colnames(backpacks)
+dim(backpacks)
+```
+
+
+
+
+#### Question 2:
+#### What is the distribution of backpack weights that students are carrying? Choose an appropriate graph to show the distribution.
+
+```{r}
+
+backpacks %>% 
+  distinct(backpack_weight)
+# there are 22 weights listed
+
+backpacks %>% 
+  ggplot(aes(x = backpack_weight)) +
+  geom_histogram(bins = 22,              #a histogram with one bin for each listed weight
+                 col = "white", 
+                 fill = "steelblue") +
+  labs(x = "Backpack Weight",
+       y = "Number of Backpacks") +
+  theme_minimal()
+```
+- This plot describes the probability of a certain backpack weight in the table. A backpack weight of 10 is statistically most likely.
+
+
+
+#### Question 3:
+#### Are there differences in backpack weight between sex?
+
+```{r}
+backpacks %>% 
+  ggplot(aes(x = sex, 
+             y = backpack_weight)) +
+  geom_col(fill = "steelblue", 
+           width = 0.5) +
+  labs(x = "Gender",
+       y = "Total Backpack Weights\n",
+       title = "Backpack Weight and Gender") +
+  theme_minimal()
+```
+- The differences in bar height shows that Female students carry more backpack weight.
+
+
+
+
+#### Question 4:
+#### What is the relationship between body weight and backpack weight?
+
+```{r}
+backpacks %>% 
+  ggplot(aes(x = body_weight, y = backpack_weight)) +
+  geom_point(colour = "steelblue")+
+  labs(x = "Body Weight",
+       y = "Backpack Weight\n",
+       title = "Body Weight and Backpack Weight") +
+  theme_minimal()
+```
+
+- There is no clear relationship between backpack weight and body weight
+
+
+
+#### Question 5:
+#### Is this relationship different between men and women? Choose an appropriate plot and interpret your findings.
+
+```{r}
+backpacks %>% 
+  ggplot(aes(y = backpack_weight, x = body_weight, colour = sex)) +
+  geom_point() +
+  scale_colour_manual( values = c("peru", 
+                               "steelblue"))+
+   labs(x = "Body Weight",
+       y = "Backpack Weight\n",
+       title = "Body Weight and Backpack Weight in Gender") +
+  theme_minimal() +
+  facet_wrap(~sex)
+```
+- There is a slight relationship between female body weight and backpack weight, as female body_weight increases backpack_weight also increases. There is not much of a relationship between male body weight and backpack weight.
+
+
+
+
+
+
+#### Question 6:
+#### What proportion of students experience back pain?
+
+
+
+```{r}
+backpacks %>% 
+  mutate(back_problems = as.character(back_problems)) %>% # since back problems is numerical/logical, convert to text so its seen as 2 character variables
+                 group_by(back_problems) %>% 
+                 count() %>% # count number of students experiencing vs not experiencing back problems
+ 
+  ggplot(aes(x = "", 
+             y = n, 
+             fill = back_problems)) + #pie charts don't take an x coordinate, the y is representing the count, fill by the 2 variables made
+  geom_bar(stat = "identity", width = 1) +
+  geom_text(aes(x= "", # add layer for labels
+                y = n,
+                label = paste((n/sum(n))*100, "%")) , nudge_y = -8) + # label will be proportion expressed as a percentage
+  coord_polar("y", start = 0) + # creates pie chart
+  theme_void() +
+  scale_fill_manual(labels = c("No Back Pain",
+                               "Experiences Back Pain"), 
+                    values = c("steelblue", 
+                               "peru")) + # fixes key names and adds colours
+  labs(fill = "Back Problems") +
+  ggtitle("Proportion of Students that Experience Back Pain")
+
+  
+ 
+  
+```
+32% of students experience back pain.
+
+#### Question 7
+#### Is this proportion different between men and women?
+
+```{r}
+backpacks %>% 
+  mutate(back_problems = as.character(back_problems)) %>%
+  filter(sex == "Female") %>% # since back problems is numerical/logical, convert to text so its seen as 2 character variables
+                 group_by(back_problems) %>% 
+                 count() %>% # count number of students experiencing vs not experiencing back problems
+ 
+  ggplot(aes(x = "", 
+             y = n, 
+             fill = back_problems)) + #pie charts don't take an x coordinate, the y is representing the count, fill by the 2 variables made
+  geom_bar(stat = "identity", width = 1) +
+  geom_text(aes(x= "", # add layer for labels
+                y = n,
+                label = paste((round((n/sum(n))*100, digits = 0)), "%")), nudge_y = -5) + # label will be proportion expressed as a percentage
+  coord_polar("y", start = 0) + # creates pie chart
+  theme_void() +
+  scale_fill_manual(labels = c("No Back Pain",
+                               "Experiences Back Pain"), 
+                    values = c("steelblue", 
+                               "peru")) + # fixes key names and adds colours
+  labs(fill = "Back Problems") +
+  ggtitle("Proportion of Female Students that Experience Back Pain")
+
+  backpacks %>% 
+  mutate(back_problems = as.character(back_problems)) %>%
+  filter(sex == "Male") %>% # since back problems is numerical/logical, convert to text so its seen as 2 character variables
+                 group_by(back_problems) %>% 
+                 count() %>% # count number of students experiencing vs not experiencing back problems
+ 
+  ggplot(aes(x = "", 
+             y = n, 
+             fill = back_problems)) + #pie charts don't take an x coordinate, the y is representing the count, fill by the 2 variables made
+  geom_bar(stat = "identity", width = 1) +
+  geom_text(aes(x= "", # add layer for labels
+                y = n,
+                label = paste((round((n/sum(n))*100, digits = 0)), "%")), nudge_y = -5) + # label will be proportion expressed as a percentage
+  coord_polar("y", start = 0) + # creates pie chart
+  theme_void() +
+  scale_fill_manual(labels = c("No Back Pain",
+                               "Experiences Back Pain"), 
+                    values = c("steelblue", 
+                               "peru")) + # fixes key names and adds colours
+  labs(fill = "Back Problems") +
+  ggtitle("Proportion of Male Students that Experience Back Pain")
+```
+44% of female students experience backpain, compared to 18% of male sutdents.
+
+
+
+
+
+#### Question 8
+#### Now you’ve investigated your data separately, create plots to describe the relationship between backpack weight, body weight, gender and reported backpain.
+
+
+```{r}
+backpacks %>% 
+  mutate(back_problems = as.character(back_problems)) %>%
+  ggplot(aes(x = body_weight, y = backpack_weight)) +
+  geom_point(aes(colour = sex, shape = back_problems)) +
+  scale_colour_manual(labels = c("Female",
+                               "Male"), 
+                    values = c("peru",
+                               "steelblue")) +
+  scale_shape_manual(labels = c("No Back Pain", "Back Pain"), values = c(17,15)) +
+   labs(x = "Body Weight",
+       y = "Backpack Weight\n",
+       title = "Body Weight and Backpack Weight in Gender with corresponding Back Problems",
+       colour = "Sex",
+       shape = "Back Problems") +
+  theme_minimal()  +
+  facet_wrap(back_problems ~ sex)
+```
+
+In women, back problems tend to arise more frequently and is more prevalent in lower weight groups. In men back problems are less frequent and tend to arise in weight groups in the middle of the scale.
+
+
+I can't get this one to work!
+```{r}
+backpacks %>% 
+  mutate(back_problems = as.character(back_problems)) %>%
+  ggplot(aes(x = sex, y = ratio)) +
+  geom_point(aes(colour = back_problems)) +
+  facet_wrap(~ sex) 
+```
+
