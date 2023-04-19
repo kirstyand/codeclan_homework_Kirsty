@@ -2,7 +2,8 @@ library(tidyverse)
 library(shiny)
 # Load data and replace long strings
 nyc_dogs <- CodeClanData::nyc_dogs %>% 
-  mutate(breed = str_replace(breed,"American Pit Bull Terrier/Pit Bull", "Pit Bull"))
+  mutate(breed = str_replace(breed,"American Pit Bull Terrier/Pit Bull", "Pit Bull")) %>% 
+  mutate(breed = str_replace(breed,"American Pit Bull Mix / Pit Bull Mix", "Pit Bull Mix"))
 
 
 # Create vector of breeds
@@ -50,20 +51,20 @@ ui <- fluidPage(
             label = "NYC Borough",
             choices = boroughs
           ),
-              selectInput(
-              inputId = "breed_input",
-              label = "Breed",
-              choices = breeds
-            )
-          ),
-          column(
-            width = 4,
-            plotOutput("count_per_breed")
+          selectInput(
+            inputId = "breed_input",
+            label = "Breed",
+            choices = breeds
           )
+        ),
+        column(
+          width = 4,
+          plotOutput("count_per_breed")
         )
       )
     )
   )
+)
 
 
 
@@ -108,9 +109,14 @@ server <- function(input, output, session) {
       labs(
         x = paste0(input$breed_input, "s"),
         y = "Count\n",
-        title = ifelse(input$borough_input_two == "Bronx", 
-                       paste0("Number of ", input$breed_input,"s in the ",input$borough_input_two),
-                       paste0("Number of ", input$breed_input,"s in ",input$borough_input_two)),
+        title = ifelse(grepl("[mM]ix$", input$breed_input),
+                       ifelse(input$borough_input_two == "Bronx", # adds "es" to mix to create mixes, then treats Bronx as above
+                              paste0("Number of ", input$breed_input,"es in the ",input$borough_input_two),
+                              paste0("Number of ", input$breed_input,"es in ",input$borough_input_two)),
+                       ifelse(input$borough_input_two == "Bronx", 
+                              paste0("Number of ", input$breed_input,"s in the ",input$borough_input_two),
+                              paste0("Number of ", input$breed_input,"s in ",input$borough_input_two))
+        ),
         fill = "Gender"
       ) +
       theme_minimal(base_size = 12) +
