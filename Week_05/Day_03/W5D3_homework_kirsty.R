@@ -20,7 +20,7 @@ boroughs <- nyc_dogs %>%
 
 
 ui <- fluidPage(
-  titlePanel("Dogs of NYC"),
+  titlePanel("The Dogs of NYC"),
   tabsetPanel(
     tabPanel( # Tab 1
       title = "Dogs per Borough",
