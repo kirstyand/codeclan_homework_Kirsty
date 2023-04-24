@@ -1,0 +1,217 @@
+---
+title: "W6D1_homework_kirsty"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(gtools)
+library(janitor)
+source("data/prob.R")
+```
+
+# MVP
+
+## 1.1 The Titanic
+
+### Q1: Calculate the conditional probabilities prob(survived∣crew) and prob(survived∣passenger)
+
+Have a look at the distinct values of the class variable, this will tell you whether each individual was a passenger (1st, 2nd or 3rd class) or a member of the crew (treat restaurant staff as crew)
+
+
+#### prob(survived∣crew)
+```{r}
+titanic <- read_csv("data/titanic.csv")
+
+titanic %>% 
+  distinct(class)
+```
+
+
+```{r}
+
+titanic <- titanic %>% 
+  mutate(crew_passenger = ifelse(str_detect(class, "[0-9]+"), "passenger", "crew"))
+  
+```
+
+Using janitor::tabyl adorned with percentages
+```{r}
+titanic_table <- titanic %>% 
+  tabyl(crew_passenger, survived) %>% 
+  adorn_totals(where = c("row", "col"))
+
+titanic_table
+```
+
+```{r}
+titanic_table %>% 
+  adorn_percentages(denominator = "all")
+
+```
+
+probability of being crew = 0.4033
+probability of surviving = 0.3222
+probability of being crew and surviving 0.0956
+
+prob(survived|crew)=prob(survived & crew) / prob(crew)
+= 0.0956 / 0.4033 = 0.237
+
+
+##### Using dplyr
+```{r}
+titanic %>% 
+  filter(crew_passenger == "crew") %>% 
+  summarise(probability = sum(survived == "yes") / n())
+```
+####  prob(survived∣passenger)
+
+probability of being passenger = 0.5967
+probability of being passenger and surviving 0.2265
+prob(survived|passenger)=prob(survived & passenger) / prob(passenger)
+= 0.2266 / 0.5967 =  0.3797
+
+##### Using dplyr
+
+```{r}
+titanic %>% 
+  filter(crew_passenger == "passenger") %>% 
+  summarise(probability = sum(survived == "yes") / n())
+```
+
+## 1.2: Probability Consolidation Questions
+
+### Q1: If I roll a six-sided dice once, what is the probability of getting a number less than 5?
+
+p(event) = n(outcomes in event) / n(total outcomes in sample space)
+
+
+outcomes in event of roll <5: {1, 2, 3, 4} = 4
+total outcomes of rolling a six sided dice once: {1, 2, 3, 4, 5, 6} = 6
+
+p(<5) = 4/6 = 0.667
+
+```{r}
+4/6
+```
+
+
+
+
+
+### Q2: How many outcomes are there in the sample space of an experiment in which we toss three dice?
+
+
+There are 6 outcomes in each die, 3 times = 6^3 = 216
+
+
+```{r}
+# n = how many options there are (6 in a die roll)
+# r = how many things are being chosen (3 rolls)
+permutations(n =6,
+             r = 3,
+             repeats.allowed = TRUE) %>% # assuming that "1,2,2" is counted as different combination from "2,2,1"
+  as_tibble()
+```
+
+
+
+### Q3: In an experiment where we roll four dice:
+How many outcomes are in the event where the total of the four dice equals 5, 6 or 7?
+what is the probability of this event?
+what assumptions do we apply in answering part ii?
+
+```{r}
+# create total column 
+four_dice <- permutations(n = 6,
+                          r = 4,
+                          repeats.allowed = TRUE) %>% 
+             as.tibble() %>% 
+             mutate(total = rowSums(.))
+
+four_dice
+```
+There are 1296 total possible outcomes.
+
+```{r} 
+# filter where total is 5, 6, or 7
+four_dice %>% 
+  filter(total == (5:7)) 
+```
+
+i .There are 9 possible combinations where the total is between 5 and 7.
+
+ii. The probability of this event is:
+  p(event) = n(outcomes in event) / n(total outcomes in sample space)
+
+  =
+
+  p(roll 5:7) = 9 / 1296 = 0.006944444
+
+iii. I assume that repeats are allowed, e.g. 1,2,1,3 is treated as a different combination from 2, 1, 1, 3 etc.
+
+
+
+
+### Q4: Five chairs are placed in a row in a room, along with five people of differing height. The people sit down randomly on the chairs. What is the probability that they sit in order of decreasing height, left to right?
+```{r}
+permutations(n = 5, # 5 chairs
+             r = 5, # 5 people
+             repeats.allowed = FALSE) %>% # they can't sit in >1 chair
+  as.tibble()
+```
+
+There are 120 possible combinations of how they could sit.
+They could only sit in height order in 1 combination. 
+Therefore p(event) = n(outcomes in event) / n(total outcomes in sample space)
+p(height order) = 1/ 120 0.008333333
+
+### Q5: I roll six dice - 
+i. what is the probability I see the numbers 6, 5, 4, 3, 2 and 1 in order on the dice, left to right?
+ii. what is the probability I see one each of the numbers 6, 5, 4, 3, 2 and 1 on the dice regardless of order?
+
+i. 
+```{r}
+permutations(n = 6,
+             r = 6,
+             repeats.allowed = TRUE) %>%  # the numbers rolled are independent of each other
+  as.tibble()
+```
+
+There are 46656 possible combinations, of this there is only one opportunity for the dice to land in order
+Therefore p(event) = n(outcomes in event) / n(total outcomes in sample space)
+p(ordered roll) = 1 / 46656 = 2.143347e-05
+
+ii. 
+```{r}
+six_die <-
+permutations(n = 6,
+             r = 6,
+             repeats.allowed = TRUE) %>%  # the numbers rolled are independent of each other
+  as.tibble() 
+```
+
+
+```{r}
+six_die %>% 
+  filter(isin(., c(6,5,4,3,2,1), ordered = FALSE)) %>% 
+  as.tibble()
+```
+ii. There are 720 possible combinations of 1:6
+p(event) = n(outcomes in event) / n(total outcomes in sample space)
+p(1:6) = 720 / 46656 = 0.0154321
+
+
+### Q6: If I draw a single card from a 52-card deck, and it is black, what is the probability that its suit is spades?
+
+
+
+```{r}
+cards(jokers = FALSE) %>% 
+  mutate(colour = if_else(suit == "Club"|suit == "Spade", "black", "red")) %>% 
+  filter(colour == "black") %>% 
+  summarise(probability = sum(suit == "Spade")/n())
+```
+
+
+
