@@ -136,7 +136,7 @@ There are 1296 total possible outcomes.
 ```{r} 
 # filter where total is 5, 6, or 7
 four_dice %>% 
-  filter(total == (5:7)) 
+  filter(total == (5:7)) # This is wrong! It is using vector recycling, so checks if total = 5, then next row for 6, then 7 and so in. Use %in% instead to search.
 ```
 
 i .There are 9 possible combinations where the total is between 5 and 7.
