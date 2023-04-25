@@ -1,0 +1,140 @@
+---
+title: "W6D2_homework_kirsty"
+output: html_notebook
+---
+
+# MVP
+
+## Q1: Load the data, clean_names() and explore it.
+
+```{r}
+# library(tidyverse)
+# library(janitor)
+```
+
+```{r}
+mobiles <- read_csv("data/20190928-items.csv")
+
+# mobiles
+
+mobiles <- clean_names(mobiles)
+```
+
+
+
+
+
+## Q2: Find the brand with the highest numbers of phones in the dataset.
+```{r}
+mobiles %>% 
+  group_by(brand) %>% 
+  count() %>% 
+  arrange(desc(n)) %>% 
+  head(2) # ensure that the top two counts aren't the same
+```
+- The brand with the highest number of phones is Samsung. 
+
+
+
+
+
+## Q3: For your top brand, plot the distribution of phone ratings as a probability density, overlaying a fitted normal distribution. Do you think the normal distribution provides a good model of these ratings?
+
+```{r}
+# Create table detailing total ratings, mean, and SD
+samsung_stats <- mobiles %>% 
+  filter(brand == "Samsung") %>% 
+  summarise(num = n(),
+            mean = mean(rating),
+            sd = sd(rating))
+```
+
+
+```{r}
+mobiles %>% 
+  filter(brand == "Samsung") %>% 
+  ggplot(aes(x = rating)) +
+  geom_histogram(aes(y = after_stat(density)), colour = "white") +
+  stat_function(
+    fun = dnorm,
+    args = list(
+      mean = samsung_stats$mean,
+      sd = samsung_stats$sd
+    ),
+    col = "red"
+  )
+
+```
+
+The normal distribution is not a good model for these ratings as the histogram is not unimodal and has various peaks throughout, including peaks at both sides of the graph.
+
+
+
+## Q4: Use these values to calculate the proportions of ratings within one-, two- and three standard deviations of the mean. Compare these proportions with those you expect for a normal distribution.
+
+within 1 SD = rating is between (mean - 1SD) and (mean + 1SD), 
+i.e. more than (mean - SD) and less than (mean + SD)
+= >(3.5733 - 0.6847859) & <(3.5733 + 0.6847859)
+= between 2.888514 - 4.258086
+
+                                                                    
+```{r}
+mobiles %>% 
+  filter(brand == "Samsung") %>% 
+  filter(rating >= samsung_stats$mean - samsung_stats$sd) %>% 
+  filter(rating <= samsung_stats$mean + samsung_stats$sd) 
+```
+315/397 = 79.34% of ratings are within 1 SD of the mean
+
+2SD: 
+
+```{r}
+mobiles %>% 
+  filter(brand == "Samsung") %>% 
+  filter(rating >= samsung_stats$mean - (2*(samsung_stats$sd))) %>% 
+  filter(rating <= samsung_stats$mean + (2*(samsung_stats$sd)))
+```
+365/397 = 91.94% of ratings are within 2 SD of the mean
+
+3SD:
+
+```{r}
+mobiles %>% 
+  filter(brand == "Samsung") %>% 
+  filter(rating >= samsung_stats$mean - (3*(samsung_stats$sd))) %>% 
+  filter(rating <= samsung_stats$mean + (3*(samsung_stats$sd)))
+```
+389/397 = 97.98% of ratings are within 3 SD of the mean
+
+Could also do this using the `scale()` function to create Z scores
+
+```{r}
+# create table with z scores:
+
+mobiles_scaled <- mobiles %>% 
+  filter(brand == "Samsung") %>% 
+  mutate(z_rating = scale(rating), .after = rating)
+```
+
+```{r}
+# filter where Z is between +/- 1, so therefore +/- 1 SD away from the mean
+mobiles_scaled %>% 
+  filter(between(z_rating, left = -1, right = 1))
+```
+315/397 = 79.34% of ratings are within 1 SD of the mean
+
+```{r}
+mobiles_scaled %>% 
+  filter(between(z_rating, left = -2, right = 2))
+```
+365/397 = 91.94% of ratings are within 2 SD of the mean
+
+```{r}
+mobiles_scaled %>% 
+  filter(between(z_rating, left = -3, right = 3))
+```
+
+389/397 = 97.98% of ratings are within 3 SD of the mean
+
+For a normal distribution, these proportions should be: 
+68%, 95%, & 99.7%. As the proportions of this distribution are different, it is therefore not a normal distribution and is likely to be skewed. 
