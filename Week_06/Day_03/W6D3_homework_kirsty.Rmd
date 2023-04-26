@@ -1,0 +1,215 @@
+---
+title: "W6D3_homework_kirsty"
+output: html_notebook
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(infer)
+```
+
+# MVP
+
+## Q1: Load the data, clean_names(), and familiarise yourself with it.
+
+```{r}
+ames <- read_csv("data/ames.csv") %>%  clean_names()
+
+ames
+```
+
+## Q2: Investigate the distribution of lot_area. Is the distribution roughly normal? If not, what problems do you find?
+
+```{r}
+ames %>% 
+  ggplot(aes(x = lot_area)) +
+  geom_histogram()
+```
+The shape of the plot is unimodal which suggests it is fairly normal however it is skewed to the right because of the right hand tail and outlier.
+
+
+## Q3: Compute and visualise a bootstrap sampling distribution for the mean(lot_area) of the sold houses.
+
+```{r}
+# Compute using `infer`, with 5000 replicates
+
+ames_sample <- ames %>% 
+  specify(response = lot_area) %>% 
+  generate(reps = 5000, type = "bootstrap") %>% 
+  calculate(stat = "mean")
+
+```
+
+```{r}
+# visualise using `infer`
+
+ames_sample %>% 
+  visualise()
+
+```
+
+## Q4: Use your bootstrap distribution to calculate a 95% CI for mean(lot_area), and visualise it on the distribution
+
+```{r}
+# Calculate 95% CI
+
+ames_ci_95 <- ames_sample %>% 
+  get_confidence_interval(level = 0.95, type = "percentile")
+
+```
+
+```{r}
+# add CI to visualisation
+
+ames_sample %>% 
+  visualise() +
+  shade_confidence_interval(endpoints = ames_ci_95)
+
+```
+
+## Q5: You would like to know the mean(lot_area) of the sold houses with higher confidence. Calculate the 99%
+
+CI for this variable (you can re-use your bootstrap distribution from
+above). Is it narrower or broader than the 95% CI? Does that make sense?
+
+```{r}
+# Calculate 99% CI
+
+ames_ci_99 <- ames_sample %>% 
+  get_confidence_interval(level = 0.99, type = "percentile")
+
+ames_ci_99
+
+# for reference the 95% CI:
+
+ames_ci_95 
+
+```
+
+The 99% CI is broader than the 95%, this makes sense as for the 99% CI
+you are saying that 99% of samples are within this CI, so the limits of
+this CI must be broader to "catch" more samples.
+
+## Q6: Calculate the point estimate of the mean(lot_area)
+
+```{r}
+ames_sample %>% 
+  summarise(point_est = mean(stat))
+```
+
+# Extension
+
+Calculate a point estimate and 95% CI for the proportion of houses in
+the data built before 1920. Does the number of reps you use matter?
+[Investigate reps from 200 up to 50000, memory of your laptop
+permitting].
+
+For 200 reps:
+
+```{r}
+# create a bootstrap sampling distribution
+
+b_1920_200_sample <- ames %>% 
+  # since "success" needs a string, add a column that says "yes" if built <1920
+  mutate(before_1920 = ifelse(year_built <1920, "yes", "no"), 
+         .after = year_built) %>% 
+   # now look for "yes" responses in this new column
+  specify(response = before_1920, success = "yes") %>%
+  generate(reps = 200, type = "bootstrap") %>% 
+  calculate(stat = "prop")
+
+```
+
+```{r}
+# now get the 95% CI
+b1920_200_ci_95 <- b_1920_200_sample %>% 
+  get_confidence_interval(level = 0.95, type = "percentile")
+```
+
+```{r}
+# now get the point estimate
+b_1920_200_sample %>% 
+  summarise(point_est_200 = mean(stat))
+```
+
+```{r}
+b_1920_200_sample %>% 
+  visualise() +
+  shade_confidence_interval(endpoints = b1920_200_ci_95)
+```
+
+For 1000 reps:
+
+```{r}
+
+b_1920_1k_sample <- ames %>% 
+  mutate(before_1920 = ifelse(year_built <1920, "yes", "no"), .after = year_built) %>% 
+  specify(response = before_1920, success = "yes") %>% 
+  generate(reps = 1000, type = "bootstrap") %>% 
+  calculate(stat = "prop")
+
+b_1920_1k_ci_95 <- b_1920_1k_sample %>% 
+  get_confidence_interval(level = 0.95, type = "percentile")
+b_1920_1k_ci_95
+
+
+
+point_est_1k <- b_1920_1k_sample %>% 
+  summarise(point_est_1k = mean(stat))
+point_est_1k
+
+```
+
+For 10K reps:
+
+```{r}
+b_1920_10k_sample <- ames %>%
+  mutate(before_1920 = ifelse(year_built <1920, "yes", "no"), .after = year_built) %>%
+  specify(response = before_1920, success = "yes") %>%
+  generate(reps = 10000, type = "bootstrap") %>%
+  calculate(stat = "prop")
+
+b_1920_10k_ci_95 <- b_1920_10k_sample %>% 
+  get_confidence_interval(level = 0.95, type = "percentile")
+b_1920_10k_ci_95
+
+
+
+point_est_10k <- b_1920_10k_sample %>% 
+  summarise(point_est_10k = mean(stat))
+point_est_10k
+
+```
+
+For 50K reps:
+
+```{r}
+ b_1920_50k_sample <- ames %>%
+  mutate(before_1920 = ifelse(year_built <1920, "yes", "no"), .after = year_built) %>%
+  specify(response = before_1920, success = "yes") %>%
+  generate(reps = 50000, type = "bootstrap") %>%
+  calculate(stat = "prop")
+
+b_1920_50k_ci_95 <- b_1920_50k_sample %>% 
+  get_confidence_interval(level = 0.95, type = "percentile")
+b_1920_50k_ci_95
+
+
+
+point_est_50k <- b_1920_50k_sample %>% 
+  summarise(point_est_50k = mean(stat))
+point_est_50k
+```
+
+| Number of Reps | Point Estimate |  Lower CI  |  Upper CI   |
+|:--------------:|:--------------:|:----------:|:-----------:|
+|      200       |   0.06014164   | 0.0518686  | 0.06794369  |
+|       1K       |   0.05996758   | 0.05187713 | 0.06825939  |
+|      10K       |   0.06010512   | 0.05153584 | 0.06894198  |
+|      50K       |   0.06004466   | 0.05153584 | 0.06860068  |
+
+As rep number increases the CI should get wider and point estimate should get more accurate.
