@@ -1,0 +1,482 @@
+---
+title: "Weekend6 Homework - Kirsty"
+output: html_notebook
+---
+
+# MVP
+
+# 1.1 Hypothesis testing - practical
+
+#### Q1: Explore the dataset and familiarise yourself with it.
+
+```{r}
+library(tidyverse)
+library(infer)
+```
+
+```{r}
+data(msleep)
+```
+
+```{r}
+head(msleep)
+```
+
+--------------------------------------------------------------------------------
+
+#### Q2: Jabberwockies sleep for around 7 hours a night, on average. Perform an appropriate statistical test to determine whether the mean sleep_total in the sampled population of animal types differs from the typical value for Jabberwockies.
+
+##### Test type: one sample mean
+
+##### 1.  Define Null & Alternative Hypotheses:
+
+**H0: The mean sleep_total in the sampled population does not differ from 7 hours**
+
+$$
+
+H_0: \mu {\textrm{Sleep_Total}} = 7
+
+$$
+
+**Ha: The mean sleep_total in the sampled population does differ from the sleep_total of Jabberwockies**
+
+$$
+
+H_a: \mu {\textrm{Sleep_Total}} \neq 7
+
+$$
+ Significance Level: 0.05
+ 
+ 
+##### 2. Calculate Test Statistic:
+ 
+```{r}
+observed_stat_jabberwockies <- msleep %>% 
+  summarise(mean_sleep_total = mean(sleep_total))
+
+observed_stat_jabberwockies
+```
+The mean of sleep_total is 10.43 hours, which is higher than our expected value of 7 hours.
+
+##### 3. Generate the Null Distribution:
+
+```{r}
+
+null_distribution_jabberwockies <- msleep %>% 
+  specify(response = sleep_total) %>% 
+  hypothesise(null = "point", mu = 7) %>% 
+  generate(reps = 2000, type = "bootstrap") %>% 
+  calculate(stat = "mean")
+
+# generate a null distribution centred around a mean of 7, for each replicate calculate the average
+
+```
+
+
+##### 4. Visualise the Null Distribution and Observed Statistic:
+
+```{r}
+null_distribution_jabberwockies %>% 
+visualise(bins = 25) + 
+shade_p_value(obs_stat = observed_stat_jabberwockies$mean_sleep_total,
+                direction = "both") # direction = both as we want to know how much it differs in either direction
+```
+From this visualisation, it is evident that the actual average differs significantly from the hypothesised average
+
+##### 5. Calculate the P-Value:
+
+```{r}
+null_distribution_jabberwockies %>% 
+  get_p_value(
+    obs_stat = observed_stat_jabberwockies$mean_sleep_total,
+    direction = "both"
+  )
+```
+Significance level α = 0.05
+
+The P value of 0 is less than the significance level of 0.05, therefore we may reject H0 in favour of Ha.
+Thus, the mean sleep_total in the sampled population does differ significantly from the average sleep total of 7 hours for Jabberwockies.
+
+--------------------------------------------------------------------------------
+
+#### Q3: Perform an appropriate statistical test to determine whether omnivores sleep for significantly longer than herbivores, on average.
+
+##### Test type: Independent, two sample test
+
+##### 1. Define Null & Alternative Hypotheses & Explore Data
+
+**H0: On average, omnivores *do not* sleep significantly longer than herbivores**
+
+$$
+
+H_0: \mu {\textrm{Sleep_Total of Omnivores}} - \mu {\textrm{Sleep_Total of Herbivores}} = 0
+
+$$
+
+**Ha: On average, omnivores *do* sleep significantly longer than herbivores**
+
+$$
+
+H_a: \mu {\textrm{Sleep_Total of Omnivores}} - \mu {\textrm{Sleep_Total of Herbivores}} > 0
+
+$$
+Significance Level: 0.05
+
+```{r}
+# filter data set to only include omnivore and herbivore data 
+
+msleep_omni_herbi <- msleep %>% 
+  filter(vore == c("omni", "herbi"))
+
+```
+
+```{r}
+# What does the distribution of sleep_total look like for each "vore"?
+
+msleep_omni_herbi %>% 
+  ggplot(aes(x = sleep_total, y = vore)) +
+  geom_boxplot() +
+  ylab("Omnivore/ Herbivore") +
+  xlab("Sleep")
+
+```
+- From the box plot, it appears that on average herbivores sleep longer than omnivores, and have a much broader range of hours slept.
+
+##### 2. Calculate Test Statistic:
+
+```{r}
+observed_stat_omni_herbi <- msleep_omni_herbi %>% 
+  specify(response = sleep_total, explanatory = vore) %>% 
+  calculate(stat = "diff in means", order = c("omni", "herbi"))
+
+observed_stat_omni_herbi
+```
+
+##### 3. Generate the Null Distribution:
+
+```{r}
+null_distribution_omni_herbi <- msleep_omni_herbi %>% 
+  specify(response = sleep_total, explanatory = vore) %>% 
+  hypothesise(null = "independence") %>% 
+  generate(reps = 2000, type = "permute") %>% 
+  calculate(stat = "diff in means", order =c("omni", "herbi")) 
+
+head(null_distribution_omni_herbi)
+```
+
+##### 4. Visualise the Null Distribution and Observed Statistic:
+
+```{r}
+null_distribution_omni_herbi%>% 
+visualise() +
+  shade_p_value(obs_stat = observed_stat_omni_herbi$stat,
+                direction = "greater")
+```
+
+##### 5. Calculate the P-Value:
+
+```{r}
+null_distribution_omni_herbi %>% 
+  get_p_value(obs_stat = observed_stat_omni_herbi$stat,
+                direction = "greater") 
+```
+Significance level α = 0.05
+
+The P value of 0.707 is significantly more than the significance level of 0.05, therefore we may fail to reject H0 in favour of Ha.
+Thus, on average, omnivores *do not* sleep significantly longer than herbivores.
+
+--------------------------------------------------------------------------------
+
+#### Q4: Perform an appropriate statistical test to determine whether the proportion of domesticated animal types in the population of animal types is greater than 5%
+
+##### Test type: One sample proportion test 
+
+##### 1.  Define Null & Alternative Hypotheses:
+
+H0 = The proportion of domesticated animal types in the overall population of animal types is less than 5%.
+
+
+$$
+
+H_0: \pi{\textrm{Domesticated Animal Types}} < 5\%
+
+$$
+Ha = The proportion of domesticated animal types in the overall population of animal types is greater than 5%.
+
+$$
+
+H_a: \pi{\textrm{Domesticated Animal Types}} > 5\%
+
+$$
+Significance Level: 0.05
+
+##### 2. Calculate Test Statistic:
+
+```{r}
+msleep_tidy <- msleep %>% 
+  drop_na(conservation)
+
+# prop with conservation = domesticated:
+
+observed_stat_domesticated <- msleep_tidy %>% 
+  group_by(conservation) %>% 
+  summarise(prop = n()/nrow(msleep_tidy)) %>% 
+  filter(conservation == "domesticated")
+
+observed_stat_domesticated
+
+```
+
+##### 3. Generate the Null Distribution:
+
+```{r}
+# generate a column specifying if the conservation class is domesticated or not
+
+msleep_tidy <- msleep_tidy %>% 
+  mutate(domesticated = if_else(conservation == "domesticated", "domesticated", "other"), .after = conservation)
+
+msleep_tidy
+```
+
+```{r}
+null_distribution_domesticated <- msleep_tidy %>% 
+  specify(response = domesticated, success = "domesticated") %>% 
+  hypothesise(null = "point", p = 0.05) %>% 
+  generate(reps = 2000, type = "draw") %>% 
+  calculate(stat = "prop")
+
+head(null_distribution_domesticated)
+```
+
+
+##### 4. Visualise the Null Distribution and Observed Statistic:
+
+```{r}
+null_distribution_domesticated %>% 
+  visualise(bins = 10) +
+  shade_p_value(obs_stat = observed_stat_domesticated$prop,
+                direction = "greater")
+```
+As the observed statistic lies to the right of the null distribution, it is likely that the proportion is >5%.
+##### 5. Calculate the P-Value:
+
+```{r}
+null_distribution_domesticated %>% 
+  get_p_value(obs_stat = observed_stat_domesticated$prop, 
+              direction = "greater")
+```
+
+Significance level α = 0.05
+
+The P value of 0 is significantly lower than the significance level of 0.05, therefore we reject H0 in favour of Ha.
+Thus, the proportion of domesticated animal types in the overall population of animal types is greater than 5%.
+
+
+--------------------------------------------------------------------------------
+
+# 1.2 Hypothesis testing - Defining the Hypothesis
+
+#### Q1: Coffee Shop
+
+##### Test: 
+
+One sample test of proportion
+
+##### H0 & Ha:
+
+H0: The proportion of the population of the town that have heard of the coffee shop is 40%.
+
+$$
+
+H_0: \pi{\textrm{Population with Awareness of Coffee Shop}} = 40\%
+
+$$
+Ha: The proportion of the population of the town that have heard of the coffee shop is more than 40%.
+
+$$
+
+H_a: \pi{\textrm{Population with Awareness of Coffee Shop}} > 40\%
+
+$$
+
+
+##### Null Distribution Method:
+
+Draw - creates a world where the proportion is equal to 40
+
+--------------------------------------------------------------------------------
+
+#### Q2 Website Design
+
+##### Test: 
+
+Independent, two sample test of the difference in the means of each group
+
+##### H0 & Ha:
+
+H0: On average, the CTR of Group B was the same as or less than that of Group A
+
+$$
+
+H_0: \mu {\textrm{Group B}} ≤ \mu {\textrm{Group A}}
+
+$$
+Ha: On average, the CTR of Group B was higher than that of Group A
+
+$$
+
+H_a: \mu {\textrm{Group B}} > \mu {\textrm{Group A}}
+
+$$
+
+
+##### Null Distribution Method: 
+
+Permute - as the H0 is that the difference in means is equal to 0, permute allows a distribution to be made based on the shuffling of the labels, rather than distributing the mean.
+
+--------------------------------------------------------------------------------
+
+#### Q3: Manufacturing Company
+
+##### Test: 
+
+One sample test of one mean
+
+##### H0 & Ha:
+
+The mean width of the part is 145mm
+
+$$
+
+H_0: \mu {\textrm{Part Width}} = {\textrm{145mm}}
+
+$$
+
+Ha: The mean width of the part is not 145mm
+
+$$
+
+H_a: \mu {\textrm{Part Width}} \neq {\textrm{145mm}}
+
+$$
+
+
+##### Null Distribution Method: 
+
+Bootstrap to create a distribution that is centered around the expect mean of 145mm.
+
+--------------------------------------------------------------------------------
+
+# 1.3 Hypothesis Testing - Interpreting the results
+
+#### Q1: Coffee Shop
+
+α = 0.05
+P = 0.07
+
+Since P > α, we would fail to reject the null hypothesis, and therefore state that the proportion of the population of the town that have heard of the coffee shop *is* around 40%, as assumed by the boss.
+
+#### Q2: Website Design
+
+α = 0.01
+P = 0.006
+
+Since P < α, we would reject the null hypothesis, and therefore state that on average, the "click through rate" (CTR) of Group B was higher than that of Group A, meaning that moving the banner to the top of the page *did* have a significantly positive impact on CTR.
+
+#### Q3: Manufacturing Company
+
+α = 0.05
+P = 0.55
+
+Since P > α, we would fail to reject the null hypothesis, and therefore state that the mean width of the particular car part did not drift from 145mm.
+
+--------------------------------------------------------------------------------
+
+# Extension
+
+```{r}
+transactions <- read_csv("data/online_retail_subset.csv") %>%  janitor::clean_names()
+```
+
+```{r}
+head(transactions, 20)
+```
+```{r}
+# total number of transactions = number of unique invoice numbers
+
+transaction_count <- transactions %>% 
+  distinct(invoice_no) %>% 
+  nrow()
+
+transaction_count
+```
+
+ 
+#### Q1: Calculate the support for item A (this will be the support for a single item)
+
+item A =‘HEART OF WICKER SMALL’ (StockCode 22469)
+item B =‘LARGE CAKE TOWEL PINK SPOTS’ (StockCode 21110)
+
+sup(A) = P(A) = no. transactions involving A / total no. of transactions
+
+```{r}
+sup_A <- transactions %>%
+  filter(stock_code == "22469") %>% 
+  distinct(invoice_no) %>% # some orders involve >1 count of A, we just want the count of each unique transaction id involving A
+  nrow()/transaction_count # divide this by number of unique transaction IDs
+
+sup_A
+```
+
+#### Q2: Calculate the support and confidence for rule (A→B)
+
+
+sup(A→B)= P(A + B being purchased together) = no. of transactions of A + B / total transactions
+
+p(A&B):
+```{r}
+trans_A_B <- transactions %>%
+  group_by(invoice_no) %>% 
+  filter(stock_code %in% c("22469", "21110")) %>% # find rows that contain either code
+  filter(n_distinct(stock_code) > 1) # filter for groups (invoices) that have >1 code in the above filter, and therefore contain both items
+
+trans_A_B
+```
+There were 10 transactions involving A and B
+
+```{r}
+sup_A_B <- nrow(trans_A_B)/transaction_count
+# number of transactions involving A + B/ number of unique transactions
+sup_A_B
+```
+```{r}
+conf_A_B <- sup_A_B / sup_A
+# P(A + B purchased together)/ P(A being purchased)
+
+conf_A_B
+```
+
+#### Q3: Calculate the lift for (A→B)
+
+sup(B) = number of transactions involving B/ total number of transactions
+
+```{r}
+sup_B <- transactions %>%
+  filter(stock_code == "21110") %>% 
+  distinct(invoice_no) %>% # some orders involve >1 count of A, we just want the count of each unique transaction id involving A
+  nrow()/transaction_count # divide this by number of unique transaction IDs
+
+sup_B
+```
+
+lift(A→B)=sup(A→B)/sup(A)×sup(B)
+
+```{r}
+lift_A_B <- sup_A_B / (sup_A * sup_B)
+
+lift_A_B
+```
+
+As lift(A→B)>1, items A and B are more likely to be bought together.
+
+--------------------------------------------------------------------------------
