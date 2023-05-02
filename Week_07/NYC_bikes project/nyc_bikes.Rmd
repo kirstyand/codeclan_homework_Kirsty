@@ -1,0 +1,100 @@
+---
+title: "NYC Bikes Project - Kirsty Anderson"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(tsibbledata)
+```
+
+```{r}
+nyc_bikes_df <- nyc_bikes
+```
+
+create columns for start/stop day, month, year, weekday, time duration (minutes):
+
+```{r}
+nyc_bikes_df <- nyc_bikes_df %>% 
+  mutate(
+    start_year = year(start_time),
+    start_month = month(start_time),
+    start_day = day(start_time),
+    start_wkday = wday(start_time, label = TRUE, abbr = TRUE),
+    stop_year = year(stop_time),
+    stop_month = month(start_time),
+    stop_day = day(stop_time),
+    stop_wkday = wday(stop_time, label = TRUE, abbr = TRUE),
+    time_duration = as.duration(stop_time - start_time),
+    time_duration = round(as.numeric(time_duration, "minutes"), digits = 2),
+    start_date= make_date(start_year, start_month, start_day),
+    stop_date= make_date(stop_year, stop_month, stop_day),
+    start_hour = hour(start_time),
+    stop_hour = hour(stop_time)
+  )
+
+
+```
+
+```{r}
+nyc_bikes_df %>% 
+  ggplot(aes(x = start_date)) +
+  geom_histogram()
+```
+```{r}
+
+nyc_bikes_df %>% 
+  group_by(start_wkday) %>% 
+  summarise(count = n()) %>% 
+  ggplot(aes(x = start_wkday, y = count)) +
+  geom_col()
+```
+
+```{r}
+nyc_bikes_df %>% 
+  group_by(start_month) %>% 
+  summarise(count = n()) %>% 
+  ggplot(aes(x = start_month, y = count)) +
+  geom_col() +
+  scale_x_continuous(breaks = 1:12)
+```
+
+```{r}
+
+nyc_bikes_df %>% 
+  group_by(start_hour) %>% 
+  summarise(count = n()) %>% 
+  ggplot(aes(x = start_hour, y = count)) +
+  geom_line() +
+  scale_x_continuous(breaks = 0:24)
+```
+
+```{r}
+nyc_bikes_df %>% 
+  group_by(stop_hour) %>% 
+  summarise(count = n()) %>% 
+  ggplot(aes(x = stop_hour, y = count)) +
+  geom_line() +
+  scale_x_continuous(breaks = 0:24)
+```
+```{r}
+nyc_bikes_df %>% 
+  filter(start_month == 8) %>% 
+  mutate(start_wkday = as.character(start_wkday)) %>% 
+  group_by(start_wkday) %>% 
+  summarise(count_day = n()) %>% 
+  ggplot(aes(x = start_wkday, y = count_day)) +
+  geom_col() #+
+  #scale_x_continuous(breaks = 0:24)
+```
+```{r}
+nyc_bikes_df %>% 
+  filter(start_month == 8) %>% 
+  as.Date(start_date) %>% 
+  group_by(start_date) %>% 
+  summarise(count = n()) %>% 
+  ggplot(aes(x = start_date, y = count)) +
+  geom_line() +
+  scale_x_continuous(breaks = 1:31)
+```
+
