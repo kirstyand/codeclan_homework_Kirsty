@@ -1,0 +1,210 @@
+---
+title: "Rates of Cancer Incidences in NHS Borders"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r setup, include=FALSE}
+ 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = FALSE) 
+
+```
+
+```{r}
+# load packages
+library(tidyverse)
+library(janitor)
+library(leaflet)
+library(here)
+
+# load data (7 datasets)
+geography_codes <- read_csv(here("data/geography_codes_and_labels_hb2014_01042019.csv")) %>%  clean_names() # HB code and HB name
+cancer_network_region_annual_incidence <- read_csv(here("data/annual_cancer_incidence_cancer_network_region.csv"))  %>%  clean_names() # region, cancer type, sex, age counts, crude 
+scotland_annual_incidence <- read_csv(here("data/annual_cancer_incidence_scotland.csv"))  %>%  clean_names()
+healthboard_incidence <- read_csv(here("data/incidence_by_hb.csv"))  %>%  clean_names()
+cancer_network_region_5yr_incidence <- read_csv(here("data/five_yr_summary_incidence_cancer_network_region.csv"))  %>%  clean_names()
+hb_5yr_incidence <- read_csv(here("data/five_yr_summary_incidence_hb.csv"))  %>%  clean_names()
+scotland_5yr_incidence <- read_csv(here("data/five_yr_summary_incidence_scotland.csv"))  %>%  clean_names()
+
+```
+
+
+
+<br>
+
+## Introduction
+
+<br>
+
+- This report aims to explore cancer rates in the NHS Borders healthboard.
+- Data was gathered from Public Health Scotland, and looks at the cancer rate for numerous cancer types across ages from <5 to 85+ from 2017 to 2021
+- The cancer "rate" is the average annual number of cases per population 
+
+
+<br>
+
+
+
+-------------------------------------------------------------------------------
+
+<br>
+
+### Data Quality and Bias
+
+<br>
+ 
+The data is completely anonymised and does not provide any connection to sensitive patient data.
+
+<br>
+
+------------------------------------------------------------------------
+
+<br>
+
+## Data Visualisations
+
+<br>
+
+### **What are the most reported cancers in NHS Borders?**
+
+<br>
+
+
+
+```{r}
+hb_5yr_incidence %>% 
+  filter(hb == "S08000016",
+         sex != "All") %>% 
+  group_by(cancer_site, sex) %>% 
+  summarise(count = sum(incidences_all_ages)) %>% 
+  arrange(desc(count)) %>% 
+  filter(cancer_site != "All cancer types") %>% 
+  head(10) %>%
+  mutate(sex = ifelse(sex == "Females", "Female", sex)) %>% 
+  ggplot(aes(x = cancer_site, y = count, fill = sex)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "Cancer",
+       y = "Incidences",
+       title = "10 Highest Cancers in NHS Borders (2017 - 2021)",
+       fill = "Sex") +
+  scale_fill_manual(values = c("Male" = "#003087", "Female" = "#00A9CE" ))
+```
+
+<br>
+
+- This plot displays the 10 most reported cancer types in NHS borders, split by gender
+- It is evident that non-melanoma skin cancer is by far the most reported, with 2 other forms of skin cancers appearing in the top 10.
+
+
+<br> 
+<br>
+<br>
+
+To provide further insight into this I then looked into:
+<br>
+
+## **How do incidence numbers differ with age range?**
+
+<br>
+
+```{r}
+# total rate per gender per age
+hb_5yr_incidence_longer <- hb_5yr_incidence %>% 
+  select(hb, cancer_site, sex, incidence_rate_age_under5:incidence_rate_age85and_over) %>% 
+  filter(hb == "S08000016") %>% 
+  filter(sex != "All") %>% 
+    pivot_longer(cols = incidence_rate_age_under5:incidence_rate_age85and_over,names_to = "age",values_to = "rate") %>% 
+  mutate(age = str_remove(string = age, pattern = "incidence_rate_age[_]*"),
+         age = str_replace(string = age, pattern = "to", replacement = " - "),
+         age = str_replace(string = age, pattern = "under", replacement = "<"),
+         age = str_replace(string = age, pattern = "85and_over", replacement = ">85"),
+        age = factor(age, levels = c("<5", "5 - 9", "10 - 14", "15 - 19", "20 - 24", "25 - 29", "30 - 34", "35 - 39", "40 - 44", "45 - 49", "50 - 54", "55 - 59", "60 - 64", "65 - 69", "70 - 74", "75 - 79", "80 - 84", ">85"))) %>% 
+    group_by(age,sex) %>% 
+  summarise(total_rate = sum(rate)) 
+
+# biggest cancer per gender per age
+biggest_cancer_age <- 
+hb_5yr_incidence %>% 
+  select(hb, cancer_site, sex, incidences_age_under5:incidences_age85and_over) %>% 
+  filter(hb == "S08000016") %>% 
+   filter(sex != "All") %>% 
+    pivot_longer(cols = incidences_age_under5:incidences_age85and_over,names_to = "age",values_to = "rate") %>% 
+  mutate(age = str_remove(string = age, pattern = "incidences_age[_]*"),
+         age = str_replace(string = age, pattern = "to", replacement = " - "),
+         age = str_replace(string = age, pattern = "under", replacement = "<"),
+         age = str_replace(string = age, pattern = "85and_over", replacement = ">85")) %>% 
+  filter(cancer_site != "All cancer types") %>% 
+  group_by(age, cancer_site) %>% 
+  summarise(total_incidences = sum(rate)) %>% 
+ slice_max(order_by = total_incidences) %>% 
+  filter(total_incidences > 1)
+
+right_join(hb_5yr_incidence_longer, biggest_cancer_age, by ="age") %>% 
+  
+   mutate(age = factor(age, levels = c("<5", "5 - 9", "10 - 14", "15 - 19", "20 - 24", "25 - 29", "30 - 34", "35 - 39", "40 - 44", "45 - 49", "50 - 54", "55 - 59", "60 - 64", "65 - 69", "70 - 74", "75 - 79", "80 - 84", ">85"))) %>% 
+ filter(cancer_site != "Acute lymphoblastic leukaemia") %>% 
+  mutate(cancer_site = ifelse(age == "15 - 19", "Skin Cancer (Basal/Melanoma) & Thyroid", cancer_site)) %>% 
+  mutate(cancer_site = ifelse(cancer_site == "Carcinoma in situ of the cervix uteri", "Cervical", cancer_site)) %>% 
+  mutate(cancer_site = ifelse(cancer_site == "All brain and CNS tumours (malignant and non-malignant)", "Brain/ CNS", cancer_site)) %>% 
+  mutate(cancer_site = ifelse(cancer_site == "Basal cell carcinoma of the skin", "Basal Cell Skin", cancer_site)) %>% 
+  mutate(cancer_site = ifelse(cancer_site == "Bone and connective tissue", "Bone/ Tissue", cancer_site)) %>% 
+  mutate(cancer_site = ifelse(cancer_site == "Colorectal cancer", "Colorectal", cancer_site)) %>% 
+  mutate(cancer_site = ifelse(cancer_site == "Malignant melanoma of the skin", "M Melanoma", cancer_site)) %>% 
+  mutate(cancer_site = ifelse(cancer_site == "Non-melanoma skin cancer", "Non-Melanoma Skin", cancer_site)) %>% 
+  
+  ggplot(aes(x = age, y = total_rate, fill = cancer_site)) + 
+  geom_col() +
+  coord_flip(expand = FALSE) +
+  labs(y = "Rate",
+       x = "Age",
+  fill = "Most Reported Cancer Site in Age Group ",
+  title = "Rates of Cancer per Age", 
+  subtitle = "Coloured by Most Reported Cancer per Age Group")+
+  
+
+  scale_fill_manual(values = c("Non-Melanoma Skin" = "#003087", "Breast" = "#00A9CE", "Cervical" = "#009639", "Brain/ CNS" = "#ED8B00", "Leukaemias" = "#DA291C" ))
+ 
+  
+
+```
+
+
+
+<br>
+
+- This plot shows the "rate" of cancer within each age group, where each group is coloured by the most reported cancer type by that age group.
+- Evidently, non-melanoma skin cancer is most prevalent in all ages above 60.
+- Breast cancer is most common in patients aged between 45 to 60
+- Cervical cancer is then most common in patients from 25 - 44
+- In younger people, brain cancers and Leukemias are the highest reported.
+_ There is a definite trend that there is a higher rate of cancer with age, with quite a large increase after the mid-60s.
+- It would be useful to then split this plot by gender, as some cancers are gender specific.
+
+<br>
+
+
+
+
+
+<br>
+
+
+
+------------------------------------------------------------------------
+
+<br>
+
+## Conclusion
+
+<br>
+
+- There is an increase in number of cancers report as age increases
+- Skin cancers are very highly reported
+- There is a low rate of incidence in groups under the age of 20
+- Further insights could be gathered on how cancers differ across genders and how rates in the Borders compare to the rest of Scotland.
+
+
+<br> 
