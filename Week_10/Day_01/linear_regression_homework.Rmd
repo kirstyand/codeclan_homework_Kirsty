@@ -1,0 +1,113 @@
+---
+title: "SLR_homework"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r}
+library(tidyverse)
+library(broom)
+library(ggfortify)
+```
+
+
+# MVP
+
+## Load Data
+
+```{r}
+project <- read_csv("data/project_management.csv")
+
+project
+```
+
+<br>
+
+## Plot Data 
+
+```{r}
+project %>% 
+  ggplot(aes(x = estimated_length, y = actual_length)) +
+  geom_point()
+```
+<br>
+
+## Correlation Coefficient
+```{r}
+project %>% 
+  summarise(correlation = cor(x = estimated_length, y =actual_length))
+```
+As the correlation coefficient is >0.5, this is therefore a strong positive correlation.
+
+<br>
+
+## Simple Linear Regression 
+
+```{r}
+(project_model <- lm(
+  formula = actual_length ~ estimated_length,
+  data = project
+))
+```
+
+<br>
+
+## Regression Coefficient and r squared
+
+
+A 1 unit increase in the explanatory variable value (estimated_length) changes the outcome variable value (actual_length) by an amount equal to b1 (the slope).
+
+In this case a 1 day increase in actual length changes the predicted length by 1.223 days
+
+```{r}
+glance(project_model) %>%  janitor::clean_names()
+```
+As this is a linear regression on a single variable, then $r^2$ is the square of the correlation coefficient (r).  
+
+
+$r^2$ = 0.8046597	* 0.8046597	= 0.6474772
+
+Since $r^2$ is the fraction of the variation size in the outcome variable that can be explained by the amount of variation in the explanatory variable, in this example 64.75% of the variation in estimated number of days can be explained by the variation in the actual number of days.
+The closer to 1 the $r^2$ value is, the better the lines fit to the model is, an r squared value of 1 indicates that all of the variation in the outcome variable is explained by the variation in the explanatory variable.
+
+<br>
+
+## Reviewing Statistical Difference
+
+Check diagnostic plots to gauge P value's reliability:
+
+```{r}
+autoplot(project_model)
+```
+
+<br>
+
+Residuals vs Fitted:
+- There does seem to be a bit of a pattern with the points, they don't appear to be randomly scattered
+- Therefore would question if the residuals are independent of each other
+- However, the smoothed line does stay relatively close to 0 but drops off at the end, because of this I would say that the residuals are independent
+
+<br>
+
+Normal Q-Q:
+- The points all lie relatively close to the line, with a very small amount of variation in the middle
+- Therefore would say that the residuals are normally distributed
+
+<br>
+
+Scale Location:
+- No evidence of heteroscedasticity suggests that the variance is constant
+
+Given that these plots mostly hold up against their requirements, I would say that the p_value is reliable.
+
+
+```{r}
+tidy(project_model) %>% janitor::clean_names()
+```
+The p value of the regression coefficient (estimated_length) is 1.911284e-12, this is less than a typical significance level of 0.05 or 0.01, so therefore the evidence suggests that the relationships are statistically different.
+
+
+
+
