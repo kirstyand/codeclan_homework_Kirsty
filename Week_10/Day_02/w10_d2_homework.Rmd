@@ -1,0 +1,143 @@
+---
+title: "W10 Day 2 Homework"
+output: html_notebook
+---
+
+```{r message=FALSE}
+library(tidyverse)
+library(GGally)
+```
+
+
+# MVP
+
+### 1. Load Data
+```{r}
+housing_prices <- read_csv("data/housing_prices.csv")
+
+head(housing_prices)
+```
+
+<br>
+
+### 2. Investigate total_rooms & total_bedrooms
+
+```{r}
+housing_prices %>% 
+  select(total_rooms, total_bedrooms) %>% 
+  ggpairs(, progress = FALSE)
+```
+
+It does look like there is a correlation between total rooms and total bedrooms
+
+<br>
+
+
+### 3. Drop total_bedrooms
+
+```{r}
+(housing_prices_trim <- housing_prices %>% 
+  select(-total_bedrooms))
+```
+
+
+<br>
+
+### 4 i. Investigate using `ggpairs`
+
+```{r warning=FALSE}
+housing_prices_trim %>% 
+  ggpairs(progress = FALSE)
+```
+
+ii. Use `ggplot` on significant correlations with median_house_value
+
+- I think there could be significant correlations with total_rooms, population, median income, ocean proximity
+
+
+```{r}
+housing_prices_trim %>% 
+  ggplot(aes(x = median_house_value, y = total_rooms))+
+  geom_boxplot()
+
+housing_prices_trim %>% 
+  ggplot(aes(x = median_house_value, y = population))+
+  geom_boxplot()
+
+housing_prices_trim %>% 
+  ggplot(aes(x = median_house_value, y = median_income))+
+  geom_boxplot()
+
+housing_prices_trim %>% 
+  ggplot(aes(x = median_house_value, y = ocean_proximity))+
+  geom_boxplot()
+```
+
+<br>
+
+### 5. Dummy variables
+
+```{r}
+
+housing_prices_trim %>% 
+distinct(ocean_proximity)
+```
+
+There are 5 levels of ocean proximity, so we will need 4 dummy variables
+
+
+<br>
+
+### 6. SLR of median_house_value with median_income
+
+median_house_value ~ median_income
+
+
+```{r}
+(model1 <- lm(median_house_value ~ median_income,
+   data = housing_prices_trim))
+
+# look at diagnostic plots before summary
+autoplot(model1)
+```
+Plot 1: possible pattern of variation in residuals, but line is flat against 0 so would say good variation in residuals
+Plot 2: QQ plot is a relatively straight line, therefore residuals are pretty normally distributed
+Plot 3: a bit of evidence of heteroscedacity but not concerning 
+**Not enough evidence to invalidate regression assumptions, this data works well for a linear regression model.**
+
+```{r}
+summary(model1)
+```
+
+
+Model results:
+median_income is a significant term in our model given the small P value
+median_income explains 41% of variance in median_house_value (see r squared is 0.4129)
+
+RSE = 74870
+Spread of data points is big
+
+#### 7. Add another predictor
+
+adding the ocean proximity variable
+
+```{r}
+(model2 <- lm(median_house_value ~ median_income + ocean_proximity,
+   data = housing_prices_trim))
+
+# look at diagnostic plots before summary
+autoplot(model2)
+```
+
+Plot 1: not much pattern of variation in residuals, but line is flat against 0 so would say good variation in residuals
+Plot 2: QQ plot is a relatively straight line, but diverts at end. Would say that residuals are pretty normally distributed
+Plot 3: not much of evidence of heteroscedacity  
+
+
+```{r}
+summary(model2)
+```
+
+I would assume that house value would increase with proximity to the ocean
+All levels of ocean proximity are significant
+can see an improvement in r squared
