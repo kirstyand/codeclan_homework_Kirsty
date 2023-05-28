@@ -1,0 +1,234 @@
+---
+title: "Model Building Weekend Homework"
+output: html_notebook
+---
+
+
+```{r}
+library(tidyverse)
+library(GGally)
+library(ggfortify)
+library(modelr)
+```
+
+```{r}
+red_wine <- read_csv("data/wine_quality_red.csv")
+
+white_wine <- read_csv("data/wine_quality_white.csv")
+
+head(red_wine)
+head(white_wine)
+```
+
+```{r}
+# check for NA values 
+red_wine %>% 
+  filter(across(everything(), ~is.na(.)))
+
+white_wine %>% 
+  filter(across(everything(), ~is.na(.)))
+```
+
+```{r}
+# change wine_id to be id_r for red wine and id_w for white wine
+red_wine_clean <- red_wine %>% 
+  mutate(wine_id = paste0(wine_id,"_red"))
+
+white_wine_clean <- white_wine %>% 
+  mutate(wine_id = paste0(wine_id,"_white"))
+```
+
+```{r}
+# check col names are the same
+colnames(white_wine_clean)
+colnames(red_wine_clean)
+```
+
+```{r}
+# join data sets
+
+(wine_full <- rbind(red_wine_clean, white_wine_clean))
+```
+```{r}
+wine_full %>% 
+  ggplot(aes(x = quality)) +
+  geom_histogram()
+```
+data set looks fairly well distributed
+
+
+data dictionary suggests that good predictors could be:
+volatile acidity (high = unpleasant)
+citric acid (high = fresher)
+residual sugar (high = sweet)
+chlorides (salt, assume high = bad?)
+total_sulfur_dioxide (low = oxidation and microbial growth (bad?))
+
+at this point, could possibly also drop:
+density
+pH
+sulphates
+alcohol
+region
+as data dictionary does not provide any information on these variables having a distinct impact on taste, but will investigate data set first before committing to dropping these
+
+to drop at this point:
+total_sulfur_dioxide is calculated from free_sulfur_dioxide, so it makes sense to drop free_sulfur_dioxide
+fixed_acidity seems like it would be related to pH, so drop that
+id column
+
+```{r}
+(wine_full_clean <- wine_full %>% 
+   select(-c("free_sulfur_dioxide", "fixed_acidity", "wine_id")))
+```
+
+
+citric acid column seems very low numbers from 0 - 1.66 
+group these into bins of:
+
+< 0.5
+0.5 - 1
+1 - 1.5
+> 1.5
+
+```{r}
+(wine_full_clean <- wine_full_clean %>%  
+  mutate(citric_acid = case_when(citric_acid < 0.50 ~ "<0.50",
+                                    between(citric_acid, 0.50, 0.99) ~ "0.50 - 0.99",
+                                    between(citric_acid, 1.00, 1.50) ~ "1.00 - 1.50",
+                                    citric_acid > 1.50 ~ ">1.50"), .after = citric_acid
+  )) 
+
+```
+
+
+
+alias check 
+
+```{r}
+wine_sample <- wine_full_clean %>% 
+  slice_sample(prop = 0.1) 
+  alias(lm(quality ~ ., data = wine_sample))
+```
+Looks like no predictors are colinear!
+
+```{r message=FALSE, warning=FALSE}
+wine_sample %>% 
+  ggpairs(progress = FALSE)
+```
+- It looks like the highest predictor of quality is alcohol content
+- other predictors could be volatile acids, possibly citric acid?
+- ph and sulphates have a lower correlation but could still be potential predictors
+- region does not look like it provides much of an effect
+- there is a high correlation between:
+  - density and residual salt, which makes sense (why then do these not appear as colinear?)
+  - chrlorides and volatile acids
+  - alcohol and residual sugars
+  - alcohol and density
+
+Start with a SLR between quality and alcohol
+
+```{r}
+model_1a <- lm(quality ~ alcohol, data = wine_full_clean)
+model_1b <- lm(quality ~ volatile_acidity, data = wine_full_clean)
+model_1c <- lm(quality ~ citric_acid, data = wine_full_clean)
+```
+
+```{r}
+summary(model_1a)
+summary(model_1b)
+summary(model_1c)
+```
+
+```{r}
+autoplot(model_1a)
+autoplot(model_1b)
+autoplot(model_1c)
+```
+model 1a:
+Residuals vs fitted: appears to be randomly scattered around 0
+Normal QQ: relatively flat along line with some distance at tails
+Scale-Location: no evidence of heteroskedacitity
+
+model 1b:
+positively skewed
+check if improves when using log(volatile acidity)
+
+model1c:
+all plots seem fine
+
+```{r}
+model_1b_log <- lm(quality ~ log(volatile_acidity), data = wine_full_clean)
+summary(model_1b_log)
+autoplot(model_1b_log)
+
+```
+This does appear to fix the problem
+
+
+quality ~ alcohol (model_1a) does appear to have the highest r squared value, so this will be the first predictor
+
+Second predictor:
+
+```{r}
+(wine_resid <- wine_full_clean %>% 
+  add_residuals(model = model_1a, var = "resid") %>% 
+  select(-quality, -alcohol))
+```
+
+```{r message=FALSE, warning=FALSE}
+wine_resid %>% 
+  ggpairs(progress = FALSE)
+```
+Residual sugars and total_sulfur_dioxide, and sulphates have a correlation with the residuals, investigate adding these
+residuals are nicely distributed
+
+
+```{r}
+model_2a <- lm(quality ~ alcohol + residual_sugar, data = wine_full_clean)
+model_2b <- lm(quality ~ alcohol + total_sulfur_dioxide, data = wine_full_clean)
+model_2c <- lm(quality ~ alcohol + sulphates, data = wine_full_clean)
+```
+
+
+```{r}
+summary(model_2a)
+summary(model_2b)
+summary(model_2c)
+```
+
+```{r}
+autoplot(model_2a)
+autoplot(model_2b)
+autoplot(model_2c)
+```
+- all graphs appear ok
+- residual sugar gave the highest r.sq value (model_2a), and improved the r.sq of the SLR(0.1832) so will use this as second predictor
+
+does adding a third predictor help?
+
+```{r message=FALSE, warning=FALSE}
+wine_resid_2 <- wine_full_clean %>% 
+  add_residuals(model_2a, var = "resid") %>% 
+  select(-quality, - alcohol, -residual_sugar)
+
+wine_resid_2 %>% 
+  ggpairs(progress = FALSE)
+```
+
+- again, residuals look nicely correlated
+- sulphates has the highest correlation, investigate adding this to model
+
+```{r}
+model_3a <- lm(quality ~ alcohol + residual_sugar + sulphates, data = wine_full_clean)
+
+summary(model_3a)
+autoplot(model_3a)
+```
+plots look ok
+r squared value has improved from before (0.1986 in previous model), RSE very slightly reduced, p Value is low for all predictors.
+Therefore would say that the best model for prediction is model_3a:
+
+quality ~ alcohol + residual_sugar + sulphates
+
+y = 1.582 + (alcohol * 0.372) + (residual_sugar * 0.028) + (sulphates * 0375)
