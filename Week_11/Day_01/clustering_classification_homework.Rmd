@@ -1,0 +1,44 @@
+---
+title: "Classification & Clustering Methods"
+output: html_notebook
+---
+
+
+# Classification and Clustering
+
+<br>
+
+
+Classification and clustering are types of pattern identification
+Classification uses predefined classes that objects within a dataset are assigned to, whereas clustering identifies similarities between objects and groups these together.
+Clustering is a method of *unsupervised* learning, as there is only one set of input data that we extract information from without knowing what the output will be
+Classification is a type of *supervised* learning as we know the input data and its classes, so we know the possible output of the model.
+
+<br>
+
+--------------------------------------------------------------------------------
+
+<br>
+
+# Hierarchical Clustering
+
+- This groups similar objects together in clusters
+- It starts by treating each observation as a single cluster
+- It then finds the two clusters that are closest together (?)
+  - you can do this using a range of methods, simplest is to take the distance between each point on the scatter plot 
+- These two clusters are then merged into one
+- This process continues until all clusters are merged together
+- Finally you are left with a dendogram that shows a visual representation of the relationship between all the clusters
+- The height where two clusters are merged represents the distance between the two clusters
+
+![Hierarchical Clustering](Hierarchical-clustering-3-1.png)
+
+<br>
+
+--------------------------------------------------------------------------------
+
+<br>
+
+**Sources:**
+
+https://blog.bismart.com/en/classification-vs.-clustering-a-practical-explanation
