@@ -1,0 +1,13 @@
+---
+title: "weekend 10 homework quiz"
+output: html_notebook
+---
+
+1. over-fitting. A good model has as few variables as possible, so variables such as postcode date of birth etc would be unnecessary. If you added new data to the model, the prediction would not be accurate because of these unnecessary variables.
+2. The model with the score of 33,559. In AIC, lower scores are better as they are an estimation of prediction error
+3. The first model is better as the adjust r.sq is higher - the second model has a higher r.sq value but also a lower adj r.sq value which suggests the higher r.sq came from having too many predictors.
+4. No, the RMSE of the test data should be less than that of the train so I don't think its overfitting.
+5. K fold validation can be used for smaller data sets. Data is split into *k* number of folds. You then make a model for each of the folds, within each fold the data is split into the same number of folds again, with one being treated as the test data and the others being used as the training data. Once all models have been tested, the average error across all the models are taken, which gives an accurate measure of the performance of the model.
+6. A validation set is a set of data that is not used in test or training, it gives you a final estimate on the fit of your model and is used at the very end of the process as a final test.
+7. Backwards selections starts by including all possible predictors in the model, then at each step you find the predictor that reduced the r.sq when its removed, and then remove this from the model
+8. Best subset selection searches for the best possible combination of predictors at each level size in both forward and backward selection, it means you can rearrange the order of your predictors and therefore optimise your model.
