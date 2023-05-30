@@ -43,12 +43,18 @@ Classification is a type of *supervised* learning as we know the input data and 
 
 <br>
 
+- You can also carry this out in the opposite way, where all clusters begin joined together and the clusters are divided up
+
+<br>
 
 - Advantages: Provides detailed information about which observations are similar
 - Disadvantages: Time consuming, so not great for large data sets.
 
 
 <br>
+
+Use: 
+On data sets where the patterns and similarities are not immediately clear
 
 --------------------------------------------------------------------------------
 
