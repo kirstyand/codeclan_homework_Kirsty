@@ -1,0 +1,235 @@
+---
+title: "Decision Trees Homework"
+output:
+  html_document:
+    df_print: paged
+---
+
+**Load Libraries**
+
+<br>
+
+```{r message=FALSE, warning=FALSE}
+library(rpart)
+library(rpart.plot)
+library(tidyverse)
+library(GGally)
+library(janitor)
+library(modelr)
+library(yardstick)
+
+titanic_set <- read_csv('data/titanic_decision_tree_data.csv')
+
+shuffle_index <- sample(1:nrow(titanic_set))
+
+# shuffle the data so class order isn't in order - need this for training/testing split later on 
+titanic_set <- titanic_set[shuffle_index, ]
+```
+
+<br>
+
+# MVP
+
+<br>
+
+## 1. Clean Data
+
+```{r}
+(titanic_set_clean <- titanic_set %>%
+  drop_na(survived) %>%  # drops 418 rows
+  mutate(sex = as.factor(sex),
+         survived = factor(survived, levels = c(0,1), labels = c("Died", "Survived")),
+         pclass = as.factor(pclass),
+         embarked = as.factor(embarked)) %>% 
+  mutate(age_status = if_else(age <= 16, "child", "adult")) %>%
+    select(-...1, -passenger_id, -name, -ticket, -fare, -cabin, -age) %>% 
+   na.omit() # drops 179 rows
+  
+)
+```
+
+<br>
+
+## 2. General plots
+
+```{r message=FALSE, warning=FALSE}
+titanic_set_clean %>% 
+ggpairs(progress = FALSE)
+```
+
+From the GGpairs plot, I would possibly expect sex, class, embarkment port, siblings/spouses count, and age to have an impact.
+
+<br>
+
+```{r}
+titanic_set_clean %>% 
+  group_by(survived) %>% 
+  count() %>% 
+  mutate(percentage = round(((n/712)*100),digits = 0))
+
+```
+
+60% of the passengers in the dataset survived, whereas 40% died.
+
+<br>
+
+```{r}
+# check sex ratio
+
+titanic_set_clean %>% 
+  group_by(sex) %>% 
+  count() %>% 
+  mutate(percentage = round(((n/712)*100),digits = 0)) # 712 passengers in cleaned data set
+```
+36% of the passengers in the dataset were female, 64% were male
+
+<br>
+
+```{r}
+# check classes and their counts
+
+titanic_set_clean %>% 
+  group_by(pclass) %>% 
+  count() %>% 
+  mutate(percentage = round(((n/712)*100),digits = 0))
+```
+26% of passengers were in 1st class, 24% in 2nd, and 50% in third
+
+<br>
+
+```{r}
+titanic_set_clean %>% 
+  group_by(embarked) %>% 
+  count() %>% 
+  mutate(percentage = round(((n/712)*100),digits = 0))
+```
+78% of the passengers embarked at Southampton, 18% at Cherbourg, and 4% at Queenstown
+
+<br>
+
+```{r}
+titanic_set_clean %>% 
+  group_by(sib_sp) %>% 
+  count() %>% 
+  mutate(percentage = round(((n/712)*100),digits = 0))
+```
+66% of passengers had no spouses or siblings on board, whereas 34% had one or more.
+
+<br>
+
+```{r}
+titanic_set_clean %>% 
+  group_by(age_status) %>% 
+  count() %>% 
+  mutate(percentage = round(((n/712)*100),digits = 0))
+```
+86% of passengers were adults whereas 14% were children.
+
+<br>
+<br>
+
+## 3. Build Model
+
+```{r}
+#80% of data will be used in training, 20% in test
+
+# get total row count
+n_data <- nrow(titanic_set_clean)
+
+# create test sample index
+test_index <- sample(1:n_data, size = n_data*0.2)
+
+# create test set
+titanic_test <- slice(titanic_set_clean, test_index)
+
+# create training set
+titanic_train <- slice(titanic_set_clean, -test_index)
+
+```
+
+
+```{r}
+# check proportions of survived/died are similar across test and train sets
+
+titanic_test %>% 
+  tabyl(survived)
+
+titanic_train %>% 
+  tabyl(survived)
+```
+- The proportions look similar in both sets
+
+<br>
+
+## 4. Build tree model 
+
+```{r}
+titanic_fit <- rpart(
+  formula = survived ~ .,
+  data = titanic_train,
+  method = 'class' # as this is used for categorical variables
+)
+
+rpart.plot(titanic_fit,
+           yesno = 2,
+           fallen.leaves = TRUE,
+           faclen = 6,
+           digits = 4)
+```
+
+<br>
+
+## 5. Analyse Tree Plot
+
+- The model has picked sex, class and number of siblings/spouses on board as the most informative predictors.
+- The root node tells us that when taking all data into account the most likely result is "died", as there is a low (41%) probability of surviving
+- It also tells us that 100% of the data passed through this node (as expected with the root node)
+- The root node then leads to the first classification category related to gender: 
+    - If male, then there is a 20% chance of survival 
+    - You might expect this as women and children were prioritised on the life boats
+    - 64% of the data passed through this node - as there was only one category leading to this node then 64% of the passengers in the data must have been male
+    - If female, then we can see at this level the chance of surviving is 76%, leading to an overall likelihood of survival. This node tells us that 36% of the passengers were        female
+- This `female` branch is then further classified into the class of the passenger:
+  - If the passengers class was 3, then at this level the passenger is not likely to have survived, as they had a probability of 48% survival. 14% of the passengers were female     and of class 3
+- This `female, class 3` branch is further split into the number of a passenger's relatives on board:
+  - If the passenger was female and of class 3 **and** had other family (siblings or spouses) then they had a 35% chance of survival so most likely died
+      - this may be from passengers wanting to be with their relatives and lowering their chance of survival
+  - 6% of passengers were in this category
+  - If the passenger did not have other family (7.54% of female class 3 passengers) then it is 60% likely that they survived
+- Returning to the females that were *not* class 3, it is highly likely that they survived (94%). 22% of the data got to this stage
+
+<br>
+
+## 6. Test and add predictions
+
+```{r}
+titanic_test_predictions <- titanic_test %>% 
+  add_predictions(titanic_fit, type = "class")
+```
+
+```{r}
+titanic_test_predictions %>% 
+  select(sex, pclass, sib_sp, survived, pred)
+```
+
+From a quick glance at the data, the predictions look to be quite accurate!
+Create a confusion matrix:
+
+
+```{r}
+(conf_mat <- titanic_test_predictions %>% 
+  conf_mat(truth = survived,
+           estimate = pred)
+)
+```
+The column on the left is the predicted values, and the actual values are on the top row
+Therefore 76 passengers were correctly predicted to die, and 36 were correctly predicted to survive.
+This is a lot higher than the 10 passengers that were predicted to survive but actually died, and the 20 passengers that were predicted to die but actually survived.
+This can also be represented using the `accuracy` function:
+
+```{r}
+(accuracy <- titanic_test_predictions %>% 
+   accuracy(truth = survived,
+            estimate = pred))
+```
+This tells us that there is a 79% chance of predicting if a passenger survived using this model.
