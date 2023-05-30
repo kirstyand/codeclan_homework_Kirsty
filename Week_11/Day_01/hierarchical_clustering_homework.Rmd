@@ -39,7 +39,14 @@ Classification is a type of *supervised* learning as we know the input data and 
 - Finally you are left with a dendrogram that shows a visual representation of the relationship between all the clusters
 - The height where two clusters are merged represents the distance between the two clusters
 
-![Hierarchical Dendrogram](images/dendogram.png)
+![*Hierarchical Dendrogram*](images/dendogram.png)
+
+<br>
+
+
+- Advantages: Provides detailed information about which observations are similar
+- Disadvantages: Time consuming, so not great for large data sets.
+
 
 <br>
 
