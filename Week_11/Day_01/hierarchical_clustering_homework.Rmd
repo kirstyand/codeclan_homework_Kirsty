@@ -26,7 +26,7 @@ Classification is a type of *supervised* learning as we know the input data and 
 
 - This groups similar objects together in clusters
 - It starts by treating each observation as a single cluster
-- It then finds the two clusters that are closest together (?)
+- It then finds the two clusters that are closest together
   - you can do this using a range of different ways to measure the closeness of two clusters
   - for example using the Euclidean distance which is the distance between each cluster computed by drawing a straight line between them
 - These two clusters are then merged into one
