@@ -105,7 +105,7 @@ mall_scale %>%
 
 ```{r}
 (clustered_mall <- kmeans(x = mall_scale,
-                         centers = 6,
+                         centers = 5,
                          nstart = 25)
 )
 ```
