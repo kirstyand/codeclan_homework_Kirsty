@@ -1,0 +1,196 @@
+---
+title: "Clustering Homework"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(broom)
+library(factoextra)
+```
+
+<br>
+
+--------------------------------------------------------------------------------
+
+<br>
+
+# MVP
+
+<br>
+
+## 1. Explore Data 
+
+<br>
+
+
+
+```{r}
+mall_customers <- read_csv("data/mall_customers.csv") %>% clean_names()
+```
+
+```{r}
+mall_customers 
+```
+there are 2 non-numerical columns: customerID and gender
+k means method uses numerical data
+remove CustomerID column and gender column will most likely be irrelevant 
+
+```{r}
+mall_customers_numerical <- mall_customers %>% 
+  select(-customer_id, -gender)
+```
+
+Visualise variables in question (annual income and spending score)
+```{r}
+mall_customers_numerical %>% 
+  ggplot(aes(x = annual_income_k, y = spending_score_1_100)) +
+  geom_point()
+```
+
+It does look like there are some potential groups so this data would be appropriate for clustering
+You can see one very 'tight' cluster around 50,50, surrounded by 4 'looser' clusters 
+
+
+<br>
+
+## 2.
+
+### Scaling 
+
+First, check what we currently have for mean and SD in the two variables
+
+```{r}
+mall_customers_numerical %>% 
+  as_tibble() %>% 
+  pivot_longer(cols = c("annual_income_k", "spending_score_1_100"),
+               names_to = "data_category",
+               values_to = "value") %>% 
+  group_by(data_category) %>% 
+  summarise(mean = round(mean(value)),
+            sd = sd(value))
+  
+```
+We need the data to be scaled so that the mean is 0 and the sd is one
+
+```{r}
+(mall_scale <- mall_customers_numerical %>% 
+   select(annual_income_k, spending_score_1_100) %>% 
+    mutate(across(everything(),
+         .fns = scale))
+)
+```
+
+Check scaled mean and sd are 0 and 1:
+
+```{r}
+mall_scale %>% 
+  as_tibble() %>% 
+  pivot_longer(cols = c("annual_income_k", "spending_score_1_100"),
+               names_to = "data_category",
+               values_to = "value") %>% 
+  group_by(data_category) %>% 
+  summarise(mean = round(mean(value)),
+            sd = sd(value))
+```
+
+<br>
+
+
+### Clustering
+
+```{r}
+(clustered_mall <- kmeans(x = mall_scale,
+                         centers = 6,
+                         nstart = 25)
+)
+```
+
+```{r}
+min_k <- 1
+max_k <- 20
+
+k_clusters <- tibble(k = min_k:max_k) %>% 
+  mutate(
+    kclust = map(k, ~kmeans(mall_scale, .x, nstart = 25)),
+    tidied = map(kclust, tidy),
+    glanced = map(kclust, glance),
+    augmented = map(kclust, augment, mall_customers_numerical)
+  )
+
+k_clusters
+```
+
+```{r}
+(clusterings <- k_clusters %>% 
+  unnest(glanced)
+)
+```
+
+```{r}
+clusterings %>% 
+  ggplot(aes(x = k, y = tot.withinss)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(breaks = seq(1, 20, by = 1))
+```
+
+There is a kink at 3 and at 5, check this with fviz 'silhouette'
+
+```{r}
+fviz_nbclust(mall_scale,
+             kmeans,
+             method = "silhouette",
+             nstart = 25)
+```
+
+A value of k = 5 is the best fit
+
+<br>
+
+
+## 3. Visualise clustering with k = 5
+
+```{r}
+clusterings %>% 
+  unnest(cols = c(augmented)) %>% 
+  filter(k == 5) %>% 
+  ggplot(aes(x = annual_income_k, y = spending_score_1_100)) +
+  geom_point(aes(colour = .cluster)) 
+  
+```
+
+
+<br>
+
+
+## 4. Does the clustering seem like a good fit for this data?
+
+Check mean for each cluster
+
+```{r}
+clusterings %>% 
+  unnest(augmented) %>% 
+  filter(k == 5) %>% 
+  group_by(.cluster) %>% 
+  summarise(mean(annual_income_k), mean(spending_score_1_100))
+```
+
+Some of the means for annual_income are quite similar (clusters 1 & 4 and clusters 2 & 5) as well as some clusters (1 & 5 and 2 & 4) from the spending_score, so perhaps they could have been clustered together better? However visually the data looks appropriate for clustering as you can clearly see definied clusters on the plot.
+
+<br>
+
+
+## 5. Cluster Attributes
+
+
+Assuming that a high spending score indicates that the customer spends a lot of money in the mall:
+
+- Clusters 1 and 4 have a low annual income but a high spending score ("super fans")
+- Clusters 2 and 5 have a high annual income but a low spending score ("tag alongs")
+- Cluster 5 has a mid-range income and spending score ("soloists")
+
