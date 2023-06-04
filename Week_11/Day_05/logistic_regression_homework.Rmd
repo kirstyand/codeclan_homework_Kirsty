@@ -1,0 +1,357 @@
+---
+title: "Logistic Regression Homework"
+output: html_notebook
+---
+
+# Load Libraries & Data
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(GGally)
+library(modelr)
+library(broom)
+library(pROC)
+library(caret)
+```
+
+```{r}
+juice <- read_csv("logistic_regression/data/orange_juice.csv") %>%  clean_names()
+```
+
+```{r}
+glimpse(juice)
+
+summary(juice) # no NA values
+```
+
+## Cleaning
+
+**change purchase into a logical variable, with `false`/`0` representing Citrus Hill (CH) and `true`/`1` representing Minute Maid (MM)**
+
+```{r}
+# check that there is no NA or other values in purchase col
+juice %>% 
+  distinct(purchase)
+
+# change CH to 0 and MM to 1, then convert to logical so 0 is false and 1 is true
+(juice_clean <- juice %>% 
+  mutate(purchase = if_else(purchase == "CH", 0, 1),
+         purchase = as.logical(purchase))
+)
+```
+
+
+**Expore similar columns**
+
+```{r}
+juice_clean %>% 
+  select(store, store_id, store7) %>% 
+  distinct()
+```
+
+It looks like these 3 columns are all giving similar information, drop store and store7 and leave store_id for now.
+
+
+```{r}
+juice_clean %>% 
+  select(sale_price_mm, sale_price_ch, price_diff) %>% 
+  distinct()
+```
+Price_diff is most likely calculated from subtracting the sale price of CH from the sale price of MM, this must be colinear, so remove this column too
+
+```{r}
+juice_clean %>% 
+  select(price_ch, price_mm, list_price_diff) %>% 
+  distinct()
+```
+Similarly, list_price_diff is most likely calculated from subtracting the price of CH from the price of MM, this must be colinear, so remove this column too
+
+```{r}
+juice_clean %>% 
+  select(price_ch, sale_price_ch, disc_ch, pct_disc_ch)
+```
+pct_disc_ch looks like it is the same as disc_ch, just represented as a percentage rather than a monetary value, remove for now as well as pct_disc_mm. These discounts don't seem to relate to the sale_price_ch column.
+
+```{r}
+
+(juice_clean <- juice_clean %>% 
+   select(-store, -store7, -price_diff, -list_price_diff, -pct_disc_ch, -pct_disc_mm)
+)
+```
+
+**change other categorical variables to factors**
+
+```{r}
+(juice_clean <- juice_clean %>% 
+  mutate(store_id = as.factor(store_id),
+         special_ch = as.logical(special_ch),
+         special_mm = as.logical(special_mm)),
+ 
+)
+         
+```
+**alias check:**
+
+```{r}
+juice_clean %>%
+  alias(purchase ~ ., data = juice_clean)
+```
+not sure why this isn't working!
+
+
+
+**GGpairs check**
+
+across 2 splits: 
+```{r message=FALSE, warning=FALSE}
+juice_clean %>% 
+  select(purchase:disc_mm) %>% 
+  ggpairs()
+```
+```{r message=FALSE, warning=FALSE}
+juice_clean %>% 
+  select(purchase,special_ch:sale_price_ch) %>% 
+  ggpairs()
+```
+
+From split 1, there are relationships between purchase and price_mm and price_ch, possibly with week of purchase and store_id too.
+
+From split 2, there are relationships between sale_price_ch and sale_price_mm, and loyal_ch, possibly with special_ch and special_mm too.
+
+
+## Logistic Regression
+
+```{r}
+mod_1a <- glm(purchase ~ price_mm, data = juice_clean, family = binomial(link = 'logit'))
+
+mod_1b<- glm(purchase ~ price_ch, data = juice_clean, family = binomial(link = 'logit'))
+
+mod_1c <- glm(purchase ~ weekof_purchase, data = juice_clean, family = binomial(link = 'logit'))
+
+mod_1d <- glm(purchase ~ store_id, data = juice_clean, family = binomial(link = 'logit'))
+
+#mod_1e <- glm(purchase ~ price_mm, data = juice_clean, family = binomial(link = 'logit')) extra model accidentally created!
+
+mod_1f <- glm(purchase ~ sale_price_mm, data = juice_clean, family = binomial(link = 'logit'))
+
+mod_1g <- glm(purchase ~ sale_price_ch, data = juice_clean, family = binomial(link = 'logit'))
+
+mod_1h <- glm(purchase ~ loyal_ch, data = juice_clean, family = binomial(link = 'logit'))
+
+mod_1i <- glm(purchase ~ special_ch, data = juice_clean, family = binomial(link = 'logit'))
+
+mod_1j <- glm(purchase ~ special_mm, data = juice_clean, family = binomial(link = 'logit'))
+
+
+
+clean_names(tidy(mod_1a))
+clean_names(tidy(mod_1b))
+clean_names(tidy(mod_1c))
+clean_names(tidy(mod_1d))
+clean_names(tidy(mod_1e))
+clean_names(tidy(mod_1f))
+clean_names(tidy(mod_1g))
+clean_names(tidy(mod_1h))
+clean_names(tidy(mod_1i))
+clean_names(tidy(mod_1j))
+
+
+```
+
+price_ch (mod_1b) is not significant as it has a high p value
+store (mod_1d) does not appear to be that significant 
+
+### ROC Curves
+
+```{r}
+mod_1a_pred <- juice_clean %>% 
+  add_predictions(mod_1a, type = "response")
+mod_1c_pred <- juice_clean %>% 
+  add_predictions(mod_1c, type = "response")
+mod_1e_pred <- juice_clean %>% 
+  add_predictions(mod_1e, type = "response")
+mod_1f_pred <- juice_clean %>% 
+  add_predictions(mod_1f, type = "response")
+mod_1g_pred <- juice_clean %>% 
+  add_predictions(mod_1g, type = "response")
+mod_1h_pred <- juice_clean %>% 
+  add_predictions(mod_1h, type = "response")
+mod_1i_pred <- juice_clean %>% 
+  add_predictions(mod_1i, type = "response")
+
+roc_mod_1a <- mod_1a_pred %>% 
+  roc(response = purchase, predictor = pred)
+roc_mod_1c <- mod_1c_pred %>% 
+  roc(response = purchase, predictor = pred)
+roc_mod_1e <- mod_1e_pred %>% 
+  roc(response = purchase, predictor = pred)
+roc_mod_1f <- mod_1f_pred %>% 
+  roc(response = purchase, predictor = pred)
+roc_mod_1g <- mod_1g_pred %>% 
+  roc(response = purchase, predictor = pred)
+roc_mod_1h <- mod_1h_pred %>% 
+  roc(response = purchase, predictor = pred)
+roc_mod_1i <- mod_1i_pred %>% 
+  roc(response = purchase, predictor = pred)
+```
+```{r}
+roc_curve <- ggroc(data = list(mod1 = roc_mod_1a,
+                               mod2 = roc_mod_1c,
+                               mod3 = roc_mod_1e,
+                               mod4 = roc_mod_1f,
+                               mod5 = roc_mod_1g,
+                               mod6 = roc_mod_1h,
+                               mod7 = roc_mod_1i),
+                   legacy.axes = TRUE) +
+  coord_fixed()
+
+roc_curve
+```
+It looks like mod6 (mod_1h, "loyal_ch") will be the best classifier as its curve gets closest to the top left corner and it is above the diagonal line. mod4 (mod_1f, "sale_price_mm") is probably the second best classifier as it is next closest to the line.
+
+```{r}
+auc(roc_mod_1a)
+auc(roc_mod_1c)
+auc(roc_mod_1e)
+auc(roc_mod_1f)
+auc(roc_mod_1g)
+auc(roc_mod_1h)
+auc(roc_mod_1i)
+```
+The AUC for mod_1h (loyal_ch) is highest, confirming that it is the best predictor. Mod_1f (sale_price_mm) is also confirmed as the second best predictor as it's AUC value is second highest.
+
+
+**Adding sale_price_mm to the model:**
+
+```{r}
+(mod_2a <- glm(purchase ~ loyal_ch + sale_price_mm, data = juice_clean, family = binomial(link = "logit"))
+)
+```
+```{r}
+clean_names(tidy(mod_2a))
+```
+
+sale_price_mm has a low p value so is significant.
+
+**How does the model look with all predictors added, in order of AUC score?**
+
+```{r}
+(mod_2b <- glm(purchase ~ loyal_ch + sale_price_mm + price_mm + weekof_purchase + sale_price_ch + special_ch, data = juice_clean, family = binomial(link = "logit"))
+)
+```
+
+```{r}
+clean_names(tidy(mod_2b))
+```
+
+1,4,5,7
+price_mm, weekof_purchase, and special_ch have high p values for a significance level of 0.05, so these should be removed from the model.
+
+```{r}
+(mod_2c <- glm(purchase ~ loyal_ch + sale_price_mm  + sale_price_ch, data = juice_clean, family = binomial(link = "logit"))
+)
+```
+
+```{r}
+clean_names(tidy(mod_2c))
+```
+
+The p values are all significant now.
+
+**Compare mod_1h (loyal_ch only) with mod_2a(loyal_ch and sale_price_mm) and mod_2c (loyal_ch with sale_price_mm and sale_price_ch)**
+
+```{r}
+mod_1h
+mod_2a
+mod_2c
+```
+Lower AIC models indicate a better fit model, so that would mean mod_2c is the best fit model.
+
+**compare models using ROC and AUC**
+
+
+```{r}
+mod_1h_pred <- juice_clean %>% 
+  add_predictions(mod_1h, type = "response")
+mod_2a_pred <- juice_clean %>% 
+  add_predictions(mod_2a, type = "response")
+mod_2c_pred <- juice_clean %>% 
+  add_predictions(mod_2c, type = "response")
+
+
+roc_mod_1h <- mod_1h_pred %>% 
+  roc(response = purchase, predictor = pred)
+roc_mod_2a <- mod_2a_pred %>% 
+  roc(response = purchase, predictor = pred)
+roc_mod_2c <- mod_2c_pred %>% 
+  roc(response = purchase, predictor = pred)
+
+```
+
+```{r}
+roc_curve_2 <- ggroc(data = list(mod1h = roc_mod_1h,
+                               mod2a = roc_mod_2a,
+                               mod2c = roc_mod_2c),
+                   legacy.axes = TRUE) +
+  coord_fixed()
+
+roc_curve_2
+```
+All models look fairly similar, and all look like they are good predictors as they are all curved nicely near the top left hand corner. Mod_2c is possibly marginally better.
+
+```{r}
+auc(roc_mod_1h)
+auc(roc_mod_2a)
+auc(roc_mod_2c)
+
+```
+The AUC confirms the ROC suggestions that the models are all similar, with mod_2c being marginally better.
+
+## Evaluating the model
+
+```{r}
+juice_clean
+```
+
+The `purchase` and `special_ch/mm` columns will need to be transformed to factors, and `purchase` will need to be recoding from 0/1 to CH/MM
+
+```{r}
+(juice_clean_factor <- juice_clean %>% 
+  mutate(purchase = as.factor(if_else(purchase == "FALSE", "CH", "MM")),
+         special_ch = as.factor(special_ch),
+         special_mm = as.factor(special_mm)
+         )
+)
+```
+
+
+
+```{r}
+train_control <- trainControl(method = "repeatedcv",
+                              number = 5,
+                              repeats = 100,
+                              savePredictions = TRUE,
+                              classProbs = TRUE,
+                              summaryFunction = twoClassSummary)
+```
+
+```{r}
+mod_2c_cv <- train(mod_2c$formula, 
+                   data = juice_clean_factor,
+                   trControl = train_control,
+                   method = "glm",
+                   family = binomial(link = "logit"))
+```
+```{r}
+summary(mod_2c_cv)
+```
+
+```{r}
+mod_2c_cv$result
+```
+The actual AUC value was 0.8995, so this is very close to this value of 0.8981. Mod_2c is a well performing model! The predictors were:
+
+purchase ~ loyal_ch + sale_price_mm  + sale_price_ch
+= Customer Loyalty + sale price of Minute Maid + sale price Citrus Hill
+

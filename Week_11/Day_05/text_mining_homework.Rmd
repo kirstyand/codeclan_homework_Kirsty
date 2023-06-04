@@ -1,0 +1,68 @@
+---
+title: "Text Mining Homework"
+output: html_notebook
+---
+
+
+# Libraries & Data
+
+```{r}
+library(tidyverse)
+library(tidytext)
+library(janeaustenr)
+```
+
+```{r}
+books <- austen_books()
+
+books
+```
+
+
+--------------------------------------------------------------------------------
+
+# MVP
+
+
+## 1. Most common words
+
+```{r}
+books %>% 
+  filter(book %in% c("Sense & Sensibility", "Pride & Prejudice")) %>% 
+  group_by(book) %>% 
+  unnest_tokens(word, text) %>% 
+  count(word, sort = TRUE) %>% 
+  head(10)
+```
+
+"The" (count of 4331) and "to" (count of 4162) were the two most common words in Pride & Prejudice; "to" (count of 4116) and "the" (count of 4105) were also the two most common words in Sense & Sensibility.
+
+## 2. Most common words excluding stop words
+
+```{r}
+books %>% 
+  filter(book %in% c("Sense & Sensibility", "Pride & Prejudice")) %>% 
+  group_by(book) %>% 
+  unnest_tokens(word, text) %>% 
+  count(word, sort = TRUE) %>% 
+  anti_join(stop_words) %>% 
+  head(10)
+
+```
+"elinor" (count of 623) and "marianne" (count of 492) were the two highest words in S&S excluding stop words. "elizabeth" (count off 597) and "darcy" (count of 373) were the two highest words in P&P.
+
+## 3. Most common sentiment words
+
+```{r}
+books %>% 
+  filter(book %in% c("Sense & Sensibility", "Pride & Prejudice")) %>% 
+  unnest_tokens(word, text) %>%
+  group_by(book) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  count(word, sort = TRUE) %>% 
+  head(10)
+```
+
+"miss" (count of 283 in P&P and 210 in S&S) and "well" (count of 224 in P&P and 240 in S&S) were both the two most common sentiment words in each book.
+
+
